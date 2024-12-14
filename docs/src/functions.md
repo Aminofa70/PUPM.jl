@@ -1,8 +1,13 @@
-```@meta
-CurrentModule = PUPM
-```
-Fucntion to remove vtu files
+# Functions
 
+```@contents
+Pages = ["functions.md"]
 ```
-remove_vtk_files(directory::String)
+
+
+```@index
+Pages = ["functions.md"]
 ```
+
+
+

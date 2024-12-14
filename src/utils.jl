@@ -1,3 +1,9 @@
+"""
+function to remove vtu file 
+```
+remove_vtk_files(directory::String)
+```
+"""
 function remove_vtk_files(directory::String)
     files = readdir(directory)
     for file in files
@@ -632,7 +638,6 @@ Emax = 1.0
 transfer_to_young!(ρnew , E0, ρ0, γ, Emin , Emax)
 
 """
-
 function transfer_to_young!(ρnew::Array{Float64,1}, E0::Float64,
     ρ0::Float64, γ::Int64, Emin::Float64, Emax::Float64)
 
@@ -644,14 +649,16 @@ end
 
 """
 function to apply volume fraction
+
 example:
+```
 ρnew = rand(Float64, 8)
 nx, ny , nz = 2 , 2 , 2
 vf = 0.5
 η = π/4
 
 ρ =  filter_density_to_vf!(ρnew, vf, nx, ny, nz, η)
-
+```
 """
 function filter_density_to_vf!(density, vf, nx, ny, nz, eta)
     rhomin, rhomax = 0.01, 1.
@@ -699,8 +706,6 @@ function filter_density_to_vf!(density, vf, nx, ny, nz, eta)
     return density
 end
 
-
-using Printf  # for @sprintf
 
 function top_upm!(par::DynamicParams, name_of_file::String, directory::String)
     grid = par.grid
