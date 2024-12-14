@@ -14,7 +14,7 @@ makedocs(;
         assets=String[],
     ),
     pages=[
-        "Home" => "index.md", "Functions" => "index.md",
+        "Home" => "index.md", "Functions" => "functions.md",
     ],
     checkdocs = :none,  # This replaces strict=false# ignores my codes 
 )

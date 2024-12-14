@@ -9,8 +9,9 @@ Documentation for [PUPM](https://github.com/Aminofa70/PUPM.jl).
 
 ```@index
 ```
+Fucntion to remove vtu files
 
 ```
-function
+remove_vtk_files(directory::String)
 ```
 
