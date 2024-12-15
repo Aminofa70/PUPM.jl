@@ -15,6 +15,24 @@ function calculate_mean(numbers::Vector{<:Number})
 end
 
 """
+
+
+"""
+function standard_deviation(data::AbstractVector{<:Number})
+    # Ensure the data is not empty
+    @assert length(data) > 1 "Data vector must have at least two elements."
+    
+    # Compute the mean
+    m = calculate_mean(data)
+    
+    # Compute the sum of squared differences from the mean
+    sum_sq_diff = sum((x - m)^2 for x in data)
+    
+    # Compute the sample standard deviation (note the division by n-1)
+    return sqrt(sum_sq_diff / (length(data) - 1))
+end
+
+"""
 function to remove vtu file 
 ```
 remove_vtk_files(directory::String)
@@ -762,7 +780,7 @@ Enew = update_upm!(k, E, H,Emax,Emin)
 function update_upm!(k::Int64, E::Array{Float64,1}, H::Array{Float64,1}, Emax::Float64, Emin::Float64)
     Enew = copy(E)
     H_mean = calculate_mean(H)
-    H_std = std(H)
+    H_std = standard_deviation(H)
     for i in eachindex(E)
         α = (H[i] - H_mean) / (k * H_std)
         Enew[i] = E[i] * (1 + α)
