@@ -47,7 +47,7 @@ end
 
 # Define parameters for the plate and mesh
 Lx, Ly = 2.0, 1.0  # Plate dimensions
-par.nx, par.ny = 300, 300   # Number of elements along x and y
+par.nx, par.ny = 50, 50   # Number of elements along x and y
 par.nz = 1 # 2d problem
 grid = create_grid(Lx, Ly, par.nx, par.ny)  # Generate the grid
 par.grid = grid

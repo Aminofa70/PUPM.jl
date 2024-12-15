@@ -1,6 +1,5 @@
 module PUPM
 using Ferrite
-using Statistics
 using Printf
 using Tensors
 
