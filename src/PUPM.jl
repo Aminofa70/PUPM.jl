@@ -5,7 +5,7 @@ using Tensors
 
 export DynamicParams
 include("DynamicParams.jl")
-
+export clculate_mean
 export remove_vtk_files
 export get_material_matrix
 export assemble_cell!
