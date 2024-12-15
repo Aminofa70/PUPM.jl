@@ -1,7 +1,7 @@
 """
 function to calculate the mean of an array of numbers
     ```
-    clculate_mean(numbers::Vector{<:Number}) 
+    calculate_mean(numbers::Vector{<:Number}) 
     ```
 
 """
@@ -761,7 +761,7 @@ Enew = update_upm!(k, E, H,Emax,Emin)
 """
 function update_upm!(k::Int64, E::Array{Float64,1}, H::Array{Float64,1}, Emax::Float64, Emin::Float64)
     Enew = copy(E)
-    H_mean = clculate_mean(H)
+    H_mean = calculate_mean(H)
     H_std = std(H)
     for i in eachindex(E)
         α = (H[i] - H_mean) / (k * H_std)
