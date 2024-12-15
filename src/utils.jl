@@ -15,16 +15,23 @@ function remove_vtk_files(directory::String)
 end
 ############################################
 """
-functions for two-dimensional finite element analysis
-
+Get the material matrix C
+```
+get_material_matrix(E, ν)
+```
 """
-## Get the material matrix C
 function get_material_matrix(E, ν)
     C_voigt = E * [1.0 ν 0.0; ν 1.0 0.0; 0.0 0.0 (1-ν)/2] / (1 - ν^2)
     return fromvoigt(SymmetricTensor{4,2}, C_voigt)
 end
 
 # Function to assemble the local stiffness matrix
+"""
+Function for the local stiffness matrix(element stiffness matrix)
+```
+assemble_cell!(ke, cell_values, E, ν)
+```
+"""
 function assemble_cell!(ke, cell_values, E, ν)
     C = get_material_matrix(E, ν)
     for qp in 1:getnquadpoints(cell_values)
@@ -39,7 +46,13 @@ function assemble_cell!(ke, cell_values, E, ν)
     end
     return ke
 end
-# Function to assemble the global stiffness matrix
+# 
+"""
+Function for the global stiffness matrix
+```
+assemble_global!(K, dh, cell_values, E, ν)
+```
+"""
 function assemble_global!(K, dh, cell_values, E, ν)
     n_basefuncs = getnbasefunctions(cell_values)
     ke = zeros(n_basefuncs, n_basefuncs)
@@ -53,6 +66,12 @@ function assemble_global!(K, dh, cell_values, E, ν)
     return K
 end
 # Function to assemble external forces from surface tractions
+"""
+Function for  external forces from surface tractions
+```
+assemble_external_forces!(f_ext, dh, facetset, facet_values, traction)
+```
+"""
 function assemble_external_forces!(f_ext, dh, facetset, facet_values, traction)
     fe_ext = zeros(getnbasefunctions(facet_values))
     for facet in FacetIterator(dh, facetset)
@@ -69,6 +88,13 @@ function assemble_external_forces!(f_ext, dh, facetset, facet_values, traction)
     return f_ext
 end
 # Function to assemble external forces from pressure
+"""
+Function for  external forces from pressure
+```
+assemble_external_pressure!(f_ext, dh, facetset, facet_values, pressure)
+
+```
+"""
 function assemble_external_pressure!(f_ext, dh, facetset, facet_values, pressure)
     fe_ext = zeros(getnbasefunctions(facet_values))
     for facet in FacetIterator(dh, facetset)
@@ -86,6 +112,12 @@ function assemble_external_pressure!(f_ext, dh, facetset, facet_values, pressure
     return f_ext
 end
 # Function to apply nodal forces to external force vector
+"""
+Function to apply nodal forces to external force vector
+```
+apply_nodal_force!(grid, node_set_name, load_vector, f_ext)
+```
+"""
 function apply_nodal_force!(grid, node_set_name, load_vector, f_ext)
     node_set = Ferrite.getnodeset(grid, node_set_name)
     for node_id in node_set
@@ -95,6 +127,12 @@ function apply_nodal_force!(grid, node_set_name, load_vector, f_ext)
     return f_ext
 end
 # Function to calculate stresses
+"""
+Function to calculate stresses
+```
+calculate_stresses(grid, dh, cv, u, E, ν)
+```
+"""
 function calculate_stresses(grid, dh, cv, u, E, ν)
     qp_stresses = [
         [zero(SymmetricTensor{2,2}) for _ in 1:getnquadpoints(cv)]
@@ -116,6 +154,12 @@ function calculate_stresses(grid, dh, cv, u, E, ν)
     return qp_stresses, avg_cell_stresses
 end
 # Function to calculate strains
+"""
+Function to calculate strains
+```
+calculate_strains(grid, dh, cv, u)
+```
+"""
 function calculate_strains(grid, dh, cv, u)
     qp_strains = [
         [zero(SymmetricTensor{2,2}) for _ in 1:getnquadpoints(cv)]
@@ -136,6 +180,12 @@ function calculate_strains(grid, dh, cv, u)
     return qp_strains, avg_cell_strains
 end
 # Function to calculate element strain energy
+"""
+Function to calculate element strain energy
+```
+calculate_strain_energy(grid, dh, cv, u, E, ν)
+```
+"""
 function calculate_strain_energy(grid, dh, cv, u, E, ν)
     element_strain_energies = zeros(getncells(grid))
     for (cell_index, cell) in enumerate(CellIterator(dh))
@@ -153,10 +203,25 @@ function calculate_strain_energy(grid, dh, cv, u, E, ν)
     end
     return element_strain_energies
 end
+
+"""
+Function to calculate the derivative of the strain energy with respect to the Young's modulus
+```
+get_material_matrix_derivative_wrt_E(E, ν)
+```
+"""
 function get_material_matrix_derivative_wrt_E(E, ν)
     dC_dE_voigt = [1.0 ν 0.0; ν 1.0 0.0; 0.0 0.0 (1-ν)/2] / (1 - ν^2)
     return fromvoigt(SymmetricTensor{4,2}, dC_dE_voigt)
 end
+
+# Function to calculate the cell volume
+"""
+Function to calculate the cell volume
+```
+calculate_cell_volume(cv)
+```
+"""
 function calculate_cell_volume(cv)
     cell_volume = 0.0
     for q_point in 1:getnquadpoints(cv)
@@ -166,6 +231,12 @@ function calculate_cell_volume(cv)
     return cell_volume
 end
 # Function to calculate parameter H
+"""
+Function to calculate parameter H
+```
+calculate_H(grid, dh, cv, u, E, ν)
+```
+"""
 function calculate_H(grid, dh, cv, u, E, ν)
     element_strain_energy_derivatives = zeros(getncells(grid))
     for (cell_index, cell) in enumerate(CellIterator(dh))
@@ -185,6 +256,12 @@ function calculate_H(grid, dh, cv, u, E, ν)
     return element_strain_energy_derivatives
 end
 ######### average strain energy
+"""
+Function to calculate the average strain energy
+```
+calculate_average_strain_energy(grid, dh, cv, u, E, ν)
+```
+"""
 function calculate_average_strain_energy(grid, dh, cv, u, E, ν)
     element_strain_energies = zeros(getncells(grid))
     element_volumes = zeros(getncells(grid)) 
@@ -224,6 +301,12 @@ struct FEMSolver
 end
 
 # Main finite element solver
+"""
+Main finite element solver for two dimension
+```
+fem_solver(par::DynamicParams)
+```
+"""
 function fem_solver(par::DynamicParams)
 
     # grid, cell_values, facet_values, dh, ch, Neumann_bc, E, ν, loads::Vector{LoadCondition})
@@ -283,7 +366,13 @@ end
 
 ###########################
 # 3D functions
-### finite elements code for 3d cases 
+### finite elements code for 3d cases
+"""
+function to apply nodal forces to external force vector in 3D
+```
+apply_nodal_force_3d!(grid, node_set_name, load_vector, f_ext)
+```
+"""
 function apply_nodal_force_3d!(grid, node_set_name, load_vector, f_ext)
     # Get the nodes in the specified nodeset
     node_set = getnodeset(grid, node_set_name)
@@ -297,6 +386,13 @@ function apply_nodal_force_3d!(grid, node_set_name, load_vector, f_ext)
 end
 ##############################################
 ##############################################
+
+"""
+function to get the material matrix for 3D
+```
+get_material_matrix_3d(E, ν)
+```
+"""
 function get_material_matrix_3d(E, ν)
     # Define the 3D material stiffness matrix in Voigt notation
     C_voigt = E / ((1 + ν) * (1 - 2 * ν)) * [
@@ -311,6 +407,12 @@ function get_material_matrix_3d(E, ν)
 end
 ##############################################
 ##############################################
+"""
+function to assemble the local stiffness matrix for 3D
+```
+assemble_cell_3d!(ke, cell_values, E, ν)
+```
+"""
 function assemble_cell_3d!(ke, cell_values, E, ν)
     # Get the material matrix for 3D
     C = get_material_matrix_3d(E, ν)
@@ -331,6 +433,12 @@ function assemble_cell_3d!(ke, cell_values, E, ν)
 end
 ##############################################
 ##############################################
+"""
+function to assemble the global stiffness matrix for 3D
+```
+assemble_global_3d!(K, dh, cell_values, E, ν)
+```
+"""
 function assemble_global_3d!(K, dh, cell_values, E, ν)
     n_basefuncs = getnbasefunctions(cell_values)
     ke = zeros(n_basefuncs, n_basefuncs)
@@ -345,6 +453,12 @@ function assemble_global_3d!(K, dh, cell_values, E, ν)
     return K
 end
 ########## traction surface forces
+"""
+function to assemble external forces from surface tractions in 3D
+```
+assemble_external_forces_3d!(f_ext, dh, facetset, facet_values, traction)
+```
+"""
 function assemble_external_forces_3d!(f_ext, dh, facetset, facet_values, traction)
     fe_ext = zeros(getnbasefunctions(facet_values))
     for facet in FacetIterator(dh, facetset)
@@ -361,6 +475,12 @@ function assemble_external_forces_3d!(f_ext, dh, facetset, facet_values, tractio
     return f_ext
 end
 ##### pressure surface forces
+"""
+function to assemble external forces from pressure in 3D
+```
+assemble_external_pressure_3d!(f_ext, dh, facetset, facet_values, pressure)
+```
+"""
 function assemble_external_pressure_3d!(f_ext, dh, facetset, facet_values, pressure)
     fe_ext = zeros(getnbasefunctions(facet_values))
     for facet in FacetIterator(dh, facetset)
@@ -378,6 +498,12 @@ function assemble_external_pressure_3d!(f_ext, dh, facetset, facet_values, press
     return f_ext
 end
 ##### 
+"""
+function to calculate stresses in 3D
+```
+calculate_stresses_3d(grid, dh, cv, u, E, ν)
+```
+"""
 function calculate_stresses_3d(grid, dh, cv, u, E, ν)
     # Initialize containers for stresses
     qp_stresses = [
@@ -410,6 +536,12 @@ end
 ##############################################################################
 ##############################################################################
 ##############################################################################
+"""
+function to calculate strains in 3D
+```
+calculate_strains_3d(grid, dh, cv, u)
+```
+"""
 function calculate_strains_3d(grid, dh, cv, u)
     # Initialize containers for strains
     qp_strains = [
@@ -441,6 +573,12 @@ end
 ##############################################################################
 ##############################################################################
 ##############################################################################
+"""
+function to calculate element strain energy in 3D
+```
+calculate_strain_energy_3d(grid, dh, cv, u, E, ν)
+```
+"""
 function calculate_strain_energy_3d(grid, dh, cv, u, E, ν)
     # Initialize the strain energy array
     element_strain_energies = zeros(getncells(grid))
@@ -463,6 +601,12 @@ function calculate_strain_energy_3d(grid, dh, cv, u, E, ν)
     return element_strain_energies
 end
 
+"""
+function to get the derivative of the material matrix with respect to the Young's modulus in 3D
+```
+get_material_matrix_derivative_wrt_E_3d(E::Vector{Float64,1}, ν)
+```
+"""
 function get_material_matrix_derivative_wrt_E_3d(E, ν)
     dC_dE_voigt = [
         1.0 ν ν 0.0 0.0 0.0;
@@ -483,6 +627,12 @@ function calculate_cell_volume_3d(cv)
     return cell_volume
 end
 
+"""
+function to calculate parameter H in 3D
+```
+calculate_H_3d(grid, dh, cv, u, E, ν)
+```
+"""
 function calculate_H_3d(grid, dh, cv, u, E, ν)
     # Initialize the derivatives array
     element_strain_energy_derivatives = zeros(getncells(grid))
@@ -523,6 +673,12 @@ struct FEMSolver_3d
 end
 
 # Main finite element solver
+"""
+Main finite element solver for 3D
+```
+fem_solver_3d(par::DynamicParams)
+```
+"""
 function fem_solver_3d(par::DynamicParams)
     #grid, cell_values, facet_values, dh, ch, Neumann_bc, E, ν, loads::Vector{LoadCondition_3d}
     grid = par.grid
@@ -614,7 +770,6 @@ E0 = 1.0
 
 ````
 """
-
 function transfer_to_density!(Enew::Array{Float64,1}, E0::Float64, ρ0::Float64, γ::Int64)
     ρmin, ρmax = 0.0, 1.0
 
@@ -706,7 +861,12 @@ function filter_density_to_vf!(density, vf, nx, ny, nz, eta)
     return density
 end
 
-
+"""
+function to perform topology optimization using UPM approach (2D case)
+```
+top_upm!(par::DynamicParams, name_of_file::String, directory::String)
+```    
+"""
 function top_upm!(par::DynamicParams, name_of_file::String, directory::String)
     grid = par.grid
     dh = par.dh
@@ -803,11 +963,13 @@ function top_upm!(par::DynamicParams, name_of_file::String, directory::String)
     end
 
 end
-
-
-###############################
-using Printf  # For @sprintf
-
+    
+"""
+function to perform topology optimization using UPM approach (3D case)
+```
+top_upm_3d!(par::DynamicParams, name_of_file::String, directory::String)
+```
+"""
 function top_upm_3d!(par::DynamicParams, name_of_file::String, directory::String)
     grid = par.grid
     dh = par.dh
