@@ -22,12 +22,13 @@ makedocs(
 
 # Deploy the documentation
 deploydocs(
-    repo = "https://github.com/Aminofa70/PUPM.jl",
-    devbranch = "main",
-    branch = "gh-pages",
-    dirname = "dev",  # Replaces `folder`
-    push_preview = false  # Set to true if previews are required
+    repo = "https://github.com/Aminofa70/PUPM.jl",  # Full HTTPS URL to your repository
+    branch = "gh-pages",                           # GitHub Pages branch
+    dirname = "stable",                            # Folder for stable docs
+    devbranch = "main",                            # Development branch
+    push_preview = false                           # Optional: Disable previews
 )
+
 
 
 
