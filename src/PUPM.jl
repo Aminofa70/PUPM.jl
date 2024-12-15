@@ -2,6 +2,8 @@ module PUPM
 using Ferrite
 using Printf
 using Tensors
+using Statistics
+
 
 export DynamicParams
 include("DynamicParams.jl")

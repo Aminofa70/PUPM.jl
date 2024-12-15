@@ -47,7 +47,7 @@ end
 
 # Define parameters for the plate and mesh
 Lx, Ly = 2.0, 1.0  # Plate dimensions
-par.nx, par.ny = 50, 50   # Number of elements along x and y
+par.nx, par.ny = 120, 60   # Number of elements along x and y
 par.nz = 1 # 2d problem
 grid = create_grid(Lx, Ly, par.nx, par.ny)  # Generate the grid
 par.grid = grid
@@ -71,7 +71,7 @@ par.Emax = 1.0              # Maximum Young's modulus
 par.ρ0 = 1.0                # Initial density
 par.tol = 1e-3            # Convergence tolerance
 par.γ = 3               # Penalty factor
-par.η = π / (2.9)              # Filter parameter
+par.η = π / (3.5)              # Filter parameter
 par.k = 8                   # Sensitivity parameter
 par.vf = 0.5          # Volume fraction
 par.max_itr = 200
