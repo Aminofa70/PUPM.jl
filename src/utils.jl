@@ -880,8 +880,8 @@ function calculate_H_3d(grid, dh, cv, u, E, ν)
 
         for q_point in 1:getnquadpoints(cv)
             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
-            dσ_dE = dC_dE ⊗ ε  # ⊗ represents the double contraction operation
-            dW_dE = 0.5 * tr(dσ_dE ⊗ ε)
+            dσ_dE = dC_dE ⊡ ε  # ⊗ represents the double contraction operation
+            dW_dE = 0.5 * tr(dσ_dE ⊡ ε)
             dΩ = getdetJdV(cv, q_point)
             cell_derivative += dW_dE * dΩ
         end
