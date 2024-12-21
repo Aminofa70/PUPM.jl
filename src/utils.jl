@@ -91,14 +91,33 @@ function assemble_global!(K, dh, cell_values, E, ν)
     n_basefuncs = getnbasefunctions(cell_values)
     ke = zeros(n_basefuncs, n_basefuncs)
     assembler = start_assemble(K)
+
     for (cell_index, cell) in enumerate(CellIterator(dh))
         reinit!(cell_values, cell)
         fill!(ke, 0.0)
-        assemble_cell!(ke, cell_values, E[cell_index], ν)
+
+        # Check if E is scalar or vector
+        local_E = isa(E, AbstractVector) ? E[cell_index] : E
+
+        assemble_cell!(ke, cell_values, local_E, ν)
         assemble!(assembler, celldofs(cell), ke)
     end
+
     return K
 end
+
+# function assemble_global!(K, dh, cell_values, E, ν)
+#     n_basefuncs = getnbasefunctions(cell_values)
+#     ke = zeros(n_basefuncs, n_basefuncs)
+#     assembler = start_assemble(K)
+#     for (cell_index, cell) in enumerate(CellIterator(dh))
+#         reinit!(cell_values, cell)
+#         fill!(ke, 0.0)
+#         assemble_cell!(ke, cell_values, E[cell_index], ν)
+#         assemble!(assembler, celldofs(cell), ke)
+#     end
+#     return K
+# end
 # Function to assemble external forces from surface tractions
 """
 Function for  external forces from surface tractions
@@ -172,21 +191,49 @@ function calculate_stresses(grid, dh, cv, u, E, ν)
         [zero(SymmetricTensor{2,2}) for _ in 1:getnquadpoints(cv)]
         for _ in 1:getncells(grid)]
     avg_cell_stresses = tuple((zeros(getncells(grid)) for _ in 1:3)...)
+
     for (cell_index, cell) in enumerate(CellIterator(dh))
         reinit!(cv, cell)
-        C = get_material_matrix(E[cell_index], ν)
+
+        # Check if E is scalar or vector
+        local_E = isa(E, AbstractVector) ? E[cell_index] : E
+
+        C = get_material_matrix(local_E, ν)
         cell_stresses = qp_stresses[cellid(cell)]
+
         for q_point in 1:getnquadpoints(cv)
             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
             cell_stresses[q_point] = C ⊡ ε
         end
+
         σ_avg = sum(cell_stresses) / getnquadpoints(cv)
         avg_cell_stresses[1][cellid(cell)] = σ_avg[1, 1]
         avg_cell_stresses[2][cellid(cell)] = σ_avg[2, 2]
         avg_cell_stresses[3][cellid(cell)] = σ_avg[1, 2]
     end
+
     return qp_stresses, avg_cell_stresses
 end
+# function calculate_stresses(grid, dh, cv, u, E, ν)
+#     qp_stresses = [
+#         [zero(SymmetricTensor{2,2}) for _ in 1:getnquadpoints(cv)]
+#         for _ in 1:getncells(grid)]
+#     avg_cell_stresses = tuple((zeros(getncells(grid)) for _ in 1:3)...)
+#     for (cell_index, cell) in enumerate(CellIterator(dh))
+#         reinit!(cv, cell)
+#         C = get_material_matrix(E[cell_index], ν)
+#         cell_stresses = qp_stresses[cellid(cell)]
+#         for q_point in 1:getnquadpoints(cv)
+#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
+#             cell_stresses[q_point] = C ⊡ ε
+#         end
+#         σ_avg = sum(cell_stresses) / getnquadpoints(cv)
+#         avg_cell_stresses[1][cellid(cell)] = σ_avg[1, 1]
+#         avg_cell_stresses[2][cellid(cell)] = σ_avg[2, 2]
+#         avg_cell_stresses[3][cellid(cell)] = σ_avg[1, 2]
+#     end
+#     return qp_stresses, avg_cell_stresses
+# end
 # Function to calculate strains
 """
 Function to calculate strains
@@ -224,7 +271,11 @@ function calculate_strain_energy(grid, dh, cv, u, E, ν)
     element_strain_energies = zeros(getncells(grid))
     for (cell_index, cell) in enumerate(CellIterator(dh))
         reinit!(cv, cell)
-        C = get_material_matrix(E[cell_index], ν)
+        
+        # Check if E is scalar or vector
+        local_E = isa(E, AbstractVector) ? E[cell_index] : E
+
+        C = get_material_matrix(local_E, ν)
         cell_energy = 0.0
         for q_point in 1:getnquadpoints(cv)
             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
@@ -237,6 +288,23 @@ function calculate_strain_energy(grid, dh, cv, u, E, ν)
     end
     return element_strain_energies
 end
+# function calculate_strain_energy(grid, dh, cv, u, E, ν)
+#     element_strain_energies = zeros(getncells(grid))
+#     for (cell_index, cell) in enumerate(CellIterator(dh))
+#         reinit!(cv, cell)
+#         C = get_material_matrix(E[cell_index], ν)
+#         cell_energy = 0.0
+#         for q_point in 1:getnquadpoints(cv)
+#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
+#             σ = C ⊡ ε
+#             W = 0.5 * tr(σ ⊡ ε)
+#             dΩ = getdetJdV(cv, q_point)
+#             cell_energy += W * dΩ
+#         end
+#         element_strain_energies[cellid(cell)] = cell_energy
+#     end
+#     return element_strain_energies
+# end
 
 """
 Function to calculate the derivative of the strain energy with respect to the Young's modulus
@@ -275,7 +343,12 @@ function calculate_H(grid, dh, cv, u, E, ν)
     element_strain_energy_derivatives = zeros(getncells(grid))
     for (cell_index, cell) in enumerate(CellIterator(dh))
         reinit!(cv, cell)
-        dC_dE = get_material_matrix_derivative_wrt_E(E[cell_index], ν)
+
+        # Handle E as either scalar or vector
+        dC_dE = typeof(E) <: AbstractVector ? 
+                get_material_matrix_derivative_wrt_E(E[cell_index], ν) : 
+                get_material_matrix_derivative_wrt_E(E, ν)
+
         cell_derivative = 0.0
         for q_point in 1:getnquadpoints(cv)
             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
@@ -289,6 +362,24 @@ function calculate_H(grid, dh, cv, u, E, ν)
     end
     return element_strain_energy_derivatives
 end
+# function calculate_H(grid, dh, cv, u, E, ν)
+#     element_strain_energy_derivatives = zeros(getncells(grid))
+#     for (cell_index, cell) in enumerate(CellIterator(dh))
+#         reinit!(cv, cell)
+#         dC_dE = get_material_matrix_derivative_wrt_E(E[cell_index], ν)
+#         cell_derivative = 0.0
+#         for q_point in 1:getnquadpoints(cv)
+#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
+#             dσ_dE = dC_dE ⊡ ε
+#             dW_dE = 0.5 * tr(dσ_dE ⊡ ε)
+#             dΩ = getdetJdV(cv, q_point)
+#             cell_derivative += dW_dE * dΩ
+#         end
+#         cell_volume = calculate_cell_volume(cv)
+#         element_strain_energy_derivatives[cellid(cell)] = cell_derivative / cell_volume
+#     end
+#     return element_strain_energy_derivatives
+# end
 ######### average strain energy
 """
 Function to calculate the average strain energy
@@ -298,11 +389,16 @@ calculate_average_strain_energy(grid, dh, cv, u, E, ν)
 """
 function calculate_average_strain_energy(grid, dh, cv, u, E, ν)
     element_strain_energies = zeros(getncells(grid))
-    element_volumes = zeros(getncells(grid)) 
+    element_volumes = zeros(getncells(grid))
 
     for (cell_index, cell) in enumerate(CellIterator(dh))
         reinit!(cv, cell)
-        C = get_material_matrix(E[cell_index], ν)
+
+        # Handle E as either scalar or vector
+        C = typeof(E) <: AbstractVector ? 
+            get_material_matrix(E[cell_index], ν) : 
+            get_material_matrix(E, ν)
+
         cell_energy = 0.0
         cell_volume = 0.0
         for q_point in 1:getnquadpoints(cv)
@@ -311,13 +407,36 @@ function calculate_average_strain_energy(grid, dh, cv, u, E, ν)
             W = 0.5 * tr(σ ⊡ ε)
             dΩ = getdetJdV(cv, q_point)
             cell_energy += W * dΩ
-            cell_volume += dΩ  # 
+            cell_volume += dΩ
         end
         element_strain_energies[cellid(cell)] = cell_energy / cell_volume
         element_volumes[cellid(cell)] = cell_volume
     end
-    return element_strain_energies  
+    return element_strain_energies
 end
+# function calculate_average_strain_energy(grid, dh, cv, u, E, ν)
+#     element_strain_energies = zeros(getncells(grid))
+#     element_volumes = zeros(getncells(grid)) 
+
+#     for (cell_index, cell) in enumerate(CellIterator(dh))
+#         reinit!(cv, cell)
+#         C = get_material_matrix(E[cell_index], ν)
+#         cell_energy = 0.0
+#         cell_volume = 0.0
+#         for q_point in 1:getnquadpoints(cv)
+#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
+#             σ = C ⊡ ε
+#             W = 0.5 * tr(σ ⊡ ε)
+#             dΩ = getdetJdV(cv, q_point)
+#             cell_energy += W * dΩ
+#             cell_volume += dΩ  # 
+#         end
+#         element_strain_energies[cellid(cell)] = cell_energy / cell_volume
+#         element_volumes[cellid(cell)] = cell_volume
+#     end
+#     return element_strain_energies  
+# end
+
 struct LoadCondition
     load_type::String
     load_data::Union{Nothing,Vector{Float64},Float64}
@@ -481,11 +600,28 @@ function assemble_global_3d!(K, dh, cell_values, E, ν)
     for (cell_index, cell) in enumerate(CellIterator(dh))
         reinit!(cell_values, cell)
         fill!(ke, 0.0)
-        assemble_cell_3d!(ke, cell_values, E[cell_index], ν)
+
+        # Handle E as either scalar or vector
+        material_E = typeof(E) <: AbstractVector ? E[cell_index] : E
+        assemble_cell_3d!(ke, cell_values, material_E, ν)
+
         assemble!(assembler, celldofs(cell), ke)
     end
     return K
 end
+# function assemble_global_3d!(K, dh, cell_values, E, ν)
+#     n_basefuncs = getnbasefunctions(cell_values)
+#     ke = zeros(n_basefuncs, n_basefuncs)
+#     assembler = start_assemble(K)
+
+#     for (cell_index, cell) in enumerate(CellIterator(dh))
+#         reinit!(cell_values, cell)
+#         fill!(ke, 0.0)
+#         assemble_cell_3d!(ke, cell_values, E[cell_index], ν)
+#         assemble!(assembler, celldofs(cell), ke)
+#     end
+#     return K
+# end
 ########## traction surface forces
 """
 function to assemble external forces from surface tractions in 3D
@@ -547,7 +683,12 @@ function calculate_stresses_3d(grid, dh, cv, u, E, ν)
 
     for (cell_index, cell) in enumerate(CellIterator(dh))
         reinit!(cv, cell)
-        C = get_material_matrix_3d(E[cell_index], ν)
+
+        # Handle E as either scalar or vector
+        C = typeof(E) <: AbstractVector ? 
+            get_material_matrix_3d(E[cell_index], ν) : 
+            get_material_matrix_3d(E, ν)
+
         cell_stresses = qp_stresses[cellid(cell)]
 
         for q_point in 1:getnquadpoints(cv)
@@ -566,6 +707,34 @@ function calculate_stresses_3d(grid, dh, cv, u, E, ν)
     end
     return qp_stresses, avg_cell_stresses
 end
+# function calculate_stresses_3d(grid, dh, cv, u, E, ν)
+#     # Initialize containers for stresses
+#     qp_stresses = [
+#         [zero(SymmetricTensor{2,3}) for _ in 1:getnquadpoints(cv)]
+#         for _ in 1:getncells(grid)]
+#     avg_cell_stresses = tuple((zeros(getncells(grid)) for _ in 1:6)...)  # 3D Voigt format
+
+#     for (cell_index, cell) in enumerate(CellIterator(dh))
+#         reinit!(cv, cell)
+#         C = get_material_matrix_3d(E[cell_index], ν)
+#         cell_stresses = qp_stresses[cellid(cell)]
+
+#         for q_point in 1:getnquadpoints(cv)
+#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
+#             cell_stresses[q_point] = C ⊡ ε
+#         end
+
+#         # Average stresses for the cell
+#         σ_avg = sum(cell_stresses) / getnquadpoints(cv)
+#         avg_cell_stresses[1][cellid(cell)] = σ_avg[1, 1]
+#         avg_cell_stresses[2][cellid(cell)] = σ_avg[2, 2]
+#         avg_cell_stresses[3][cellid(cell)] = σ_avg[3, 3]
+#         avg_cell_stresses[4][cellid(cell)] = σ_avg[1, 2]
+#         avg_cell_stresses[5][cellid(cell)] = σ_avg[2, 3]
+#         avg_cell_stresses[6][cellid(cell)] = σ_avg[1, 3]
+#     end
+#     return qp_stresses, avg_cell_stresses
+# end
 ########## strains
 ##############################################################################
 ##############################################################################
@@ -619,7 +788,12 @@ function calculate_strain_energy_3d(grid, dh, cv, u, E, ν)
 
     for (cell_index, cell) in enumerate(CellIterator(dh))
         reinit!(cv, cell)
-        C = get_material_matrix_3d(E[cell_index], ν)
+
+        # Handle E as either scalar or vector
+        C = typeof(E) <: AbstractVector ? 
+            get_material_matrix_3d(E[cell_index], ν) : 
+            get_material_matrix_3d(E, ν)
+
         cell_energy = 0.0
 
         for q_point in 1:getnquadpoints(cv)
@@ -634,6 +808,27 @@ function calculate_strain_energy_3d(grid, dh, cv, u, E, ν)
     end
     return element_strain_energies
 end
+# function calculate_strain_energy_3d(grid, dh, cv, u, E, ν)
+#     # Initialize the strain energy array
+#     element_strain_energies = zeros(getncells(grid))
+
+#     for (cell_index, cell) in enumerate(CellIterator(dh))
+#         reinit!(cv, cell)
+#         C = get_material_matrix_3d(E[cell_index], ν)
+#         cell_energy = 0.0
+
+#         for q_point in 1:getnquadpoints(cv)
+#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
+#             σ = C ⊡ ε
+#             W = 0.5 * tr(σ ⊡ ε)
+#             dΩ = getdetJdV(cv, q_point)
+#             cell_energy += W * dΩ
+#         end
+
+#         element_strain_energies[cellid(cell)] = cell_energy
+#     end
+#     return element_strain_energies
+# end
 
 """
 function to get the derivative of the material matrix with respect to the Young's modulus in 3D
@@ -673,14 +868,20 @@ function calculate_H_3d(grid, dh, cv, u, E, ν)
 
     for (cell_index, cell) in enumerate(CellIterator(dh))
         reinit!(cv, cell)
-        C = get_material_matrix_3d(E[cell_index], ν)
-        dC_dE = get_material_matrix_derivative_wrt_E_3d(E[cell_index], ν)
+
+        # Determine the elasticity modulus for the current cell
+        E_cell = isa(E, Number) ? E : E[cell_index]
+
+        # Get the material matrix and its derivative for the current cell
+        C = get_material_matrix_3d(E_cell, ν)
+        dC_dE = get_material_matrix_derivative_wrt_E_3d(E_cell, ν)
+
         cell_derivative = 0.0
 
         for q_point in 1:getnquadpoints(cv)
             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
-            dσ_dE = dC_dE ⊡ ε
-            dW_dE = 0.5 * tr(dσ_dE ⊡ ε)
+            dσ_dE = dC_dE ⊗ ε  # ⊗ represents the double contraction operation
+            dW_dE = 0.5 * tr(dσ_dE ⊗ ε)
             dΩ = getdetJdV(cv, q_point)
             cell_derivative += dW_dE * dΩ
         end
@@ -688,8 +889,32 @@ function calculate_H_3d(grid, dh, cv, u, E, ν)
         cell_volume = calculate_cell_volume_3d(cv)
         element_strain_energy_derivatives[cellid(cell)] = cell_derivative / cell_volume
     end
+
     return element_strain_energy_derivatives
 end
+# function calculate_H_3d(grid, dh, cv, u, E, ν)
+#     # Initialize the derivatives array
+#     element_strain_energy_derivatives = zeros(getncells(grid))
+
+#     for (cell_index, cell) in enumerate(CellIterator(dh))
+#         reinit!(cv, cell)
+#         C = get_material_matrix_3d(E[cell_index], ν)
+#         dC_dE = get_material_matrix_derivative_wrt_E_3d(E[cell_index], ν)
+#         cell_derivative = 0.0
+
+#         for q_point in 1:getnquadpoints(cv)
+#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
+#             dσ_dE = dC_dE ⊡ ε
+#             dW_dE = 0.5 * tr(dσ_dE ⊡ ε)
+#             dΩ = getdetJdV(cv, q_point)
+#             cell_derivative += dW_dE * dΩ
+#         end
+
+#         cell_volume = calculate_cell_volume_3d(cv)
+#         element_strain_energy_derivatives[cellid(cell)] = cell_derivative / cell_volume
+#     end
+#     return element_strain_energy_derivatives
+# end
 # Struct for load conditions in 3D
 struct LoadCondition_3d
     load_type::String
