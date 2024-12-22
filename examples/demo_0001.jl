@@ -62,7 +62,7 @@ par.ch = create_bc(par.dh)
 # Create CellValues and FacetValues
 par.cell_values, par.facet_values = create_values()
 
-# Define loads
+# # # Define loads
 pressure_value = 1e10  # Example pressure in Pascals
 par.loads = [LoadCondition("pressure_load", pressure_value)]  # Load applied to "pressure" facet
 
@@ -74,9 +74,11 @@ par.ν = 0.3 # Poisson's ratio
 # Neumann BC facet set
 dh = par.dh; grid = dh.grid
 par.Neumann_bc = Ferrite.getfacetset(dh.grid, "pressure")
+
 # Solve the FEM problem using OptiUPM
 result = fem_solver(par)
 
 u = result.u
-maximum(u)
 
+display(maximum(u))
+display(minimum(u))

@@ -461,51 +461,48 @@ fem_solver(par::DynamicParams)
 ```
 """
 function fem_solver(par::DynamicParams)
-
-    # Unpack parameters
+    # Extract common parameters from the input
     grid = par.grid
     cell_values = par.cell_values
     facet_values = par.facet_values
     dh = par.dh
     ch = par.ch
-    Neumann_bc = get(par, :Neumann_bc, nothing)  # Default to `nothing` if not provided
     E = par.E
     ν = par.ν
-    loads = get(par, :loads, [])  # Default to an empty vector if not provided
 
-    # Allocate and assemble global stiffness matrix
+    # Allocate and assemble the global stiffness matrix
     K = allocate_matrix(dh)
     assemble_global!(K, dh, cell_values, E, ν)
 
     # Initialize external force vector
     f_ext = zeros(ndofs(dh))
 
-    # Process each load condition and apply to Neumann_bc, if provided
-    if loads !== nothing
+    # Check if Neumann_bc and loads are not empty
+    if !isempty(par.Neumann_bc) && !isempty(par.loads)
+        Neumann_bc = par.Neumann_bc
+        loads = par.loads
+
         for load in loads
             if load.load_type == "traction_load"
-                if Neumann_bc !== nothing
-                    assemble_external_forces!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
-                else
-                    error("Neumann boundary conditions are required for traction loads.")
-                end
+                assemble_external_forces!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
             elseif load.load_type == "nodal_load"
                 apply_nodal_force!(grid, Neumann_bc, load.load_data, f_ext)
             elseif load.load_type == "pressure_load"
-                if Neumann_bc !== nothing
-                    assemble_external_pressure!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
-                else
-                    error("Neumann boundary conditions are required for pressure loads.")
-                end
+                assemble_external_pressure!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
             else
                 error("Unknown load type: $(load.load_type)")
             end
         end
     end
 
+    # Handle the case when Neumann_bc or loads are empty
+    if isempty(par.Neumann_bc) || isempty(par.loads)
+        println("Warning: Either Neumann boundary conditions or loads are empty. Proceeding without external forces.")
+    end
+
     # Apply constraints and solve the system
     Ferrite.apply!(K, f_ext, ch)
-    u = K \ f_ext  # Solve linear system
+    u = K \ f_ext  # Solve the linear system
     c = 0.5 * dot(f_ext, u)
 
     # Calculate derived quantities
@@ -515,6 +512,7 @@ function fem_solver(par::DynamicParams)
     H = calculate_H(grid, dh, cell_values, u, E, ν)
     ψ_avg = calculate_average_strain_energy(grid, dh, cell_values, u, E, ν)
 
+    # Return the result
     return FEMSolver(u, c, σ, ε, U, H, ψ_avg)
 end
 
@@ -997,48 +995,46 @@ fem_solver_3d(par::DynamicParams)
 ```
 """
 function fem_solver_3d(par::DynamicParams)
-    # Unpack parameters
+    # Extract common parameters from the input
     grid = par.grid
     cell_values = par.cell_values
     facet_values = par.facet_values
     dh = par.dh
     ch = par.ch
-    Neumann_bc = get(par, :Neumann_bc, nothing)  # Default to `nothing` if not provided
     E = par.E
     ν = par.ν
-    loads = get(par, :loads, [])  # Default to an empty vector if not provided
 
-    # Allocate and assemble global stiffness matrix
-    K = allocate_matrix(dh)  # Allocate stiffness matrix
+    # Allocate and assemble the global stiffness matrix
+    K = allocate_matrix(dh)
     assemble_global_3d!(K, dh, cell_values, E, ν)
 
     # Initialize external force vector
     f_ext = zeros(ndofs(dh))
 
-    # Process each load condition and apply to Neumann boundary conditions, if provided
-    if loads !== nothing
+    # Check if Neumann_bc and loads are not empty
+    if !isempty(par.Neumann_bc) && !isempty(par.loads)
+        Neumann_bc = par.Neumann_bc
+        loads = par.loads
+
         for load in loads
             if load.load_type == "traction_load"
-                if Neumann_bc !== nothing
-                    assemble_external_forces_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
-                else
-                    error("Neumann boundary conditions are required for traction loads.")
-                end
+                assemble_external_forces_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
             elseif load.load_type == "nodal_load"
                 apply_nodal_force_3d!(grid, Neumann_bc, load.load_data, f_ext)
             elseif load.load_type == "pressure_load"
-                if Neumann_bc !== nothing
-                    assemble_external_pressure_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
-                else
-                    error("Neumann boundary conditions are required for pressure loads.")
-                end
+                assemble_external_pressure_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
             else
                 error("Unknown load type: $(load.load_type)")
             end
         end
     end
 
-    # Apply constraints and solve the linear system
+    # Handle the case when Neumann_bc or loads are empty
+    if isempty(par.Neumann_bc) || isempty(par.loads)
+        println("Warning: Either Neumann boundary conditions or loads are empty. Proceeding without external forces.")
+    end
+
+    # Apply constraints and solve the system
     apply!(K, f_ext, ch)  # Apply constraints
     u = K \ f_ext         # Solve the system Ku = f_ext
     c = 0.5 * dot(f_ext, u)  # Compute compliance
@@ -1052,6 +1048,7 @@ function fem_solver_3d(par::DynamicParams)
     # Return solver results
     return FEMSolver_3d(u, c, σ, ε, U, H)
 end
+
 
 # function fem_solver_3d(par::DynamicParams)
 #     #grid, cell_values, facet_values, dh, ch, Neumann_bc, E, ν, loads::Vector{LoadCondition_3d}
