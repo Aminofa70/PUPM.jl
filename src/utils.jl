@@ -1188,7 +1188,7 @@ vf = 0.5
 ρ =  filter_density_to_vf!(ρnew, vf, nx, ny, nz, η)
 ```
 """
-function filter_density_to_vf!(density, vf, nx, ny, nz, eta)
+function filter_density_to_vf!(density, vf, tnele, eta)
     rhomin, rhomax = 0.01, 1.
     function transform(rholoc, rhotr, eta, rhomin, rhomax)
         if rholoc < rhotr
@@ -1208,15 +1208,15 @@ function filter_density_to_vf!(density, vf, nx, ny, nz, eta)
         rhotr = (rhominbound + rhomaxbound) / 2  # this is the initial point
         sumdmin = 0.0
         for i in eachindex(density)
-            sumdmin += transform(density[i], rhominbound, eta, rhomin, rhomax) / (nx * ny * nz)
+            sumdmin += transform(density[i], rhominbound, eta, rhomin, rhomax) / (tnele)
         end
         sumdmax = 0.0
         for i in eachindex(density)
-            sumdmax += transform(density[i], rhomaxbound, eta, rhomin, rhomax) / (nx * ny * nz)
+            sumdmax += transform(density[i], rhomaxbound, eta, rhomin, rhomax) / (tnele)
         end
         sumdmid = 0.0
         for i in eachindex(density)
-            sumdmid += transform(density[i], rhotr, eta, rhomin, rhomax) / (nx * ny * nz)
+            sumdmid += transform(density[i], rhotr, eta, rhomin, rhomax) / (tnele)
         end
         if (sumdmin - vf) / (sumdmid - vf) > 0
             rhominbound = rhotr
@@ -1234,6 +1234,52 @@ function filter_density_to_vf!(density, vf, nx, ny, nz, eta)
     return density
 end
 
+# function filter_density_to_vf!(density, vf, nx, ny, nz, eta)
+#     rhomin, rhomax = 0.01, 1.
+#     function transform(rholoc, rhotr, eta, rhomin, rhomax)
+#         if rholoc < rhotr
+#             rhotrans = rhomin  
+#         elseif rholoc > rhotr + 1.0/tan(eta)
+#             rhotrans = rhomax
+#         else
+#             rhotrans = tan(eta) * (rholoc - rhotr)
+#         end
+#         return rhotrans
+#     end
+#     rhomaxbound = -1.0/tan(eta)  # minimum that gives a vf of 0
+#     rhominbound = 1.0  # maximum that gives a vf of 1
+#     error = 10.0  # just put a high number
+#     rhotr = 0.0  # Initialize rhotr before the loop
+#     while error > 0.001
+#         rhotr = (rhominbound + rhomaxbound) / 2  # this is the initial point
+#         sumdmin = 0.0
+#         for i in eachindex(density)
+#             sumdmin += transform(density[i], rhominbound, eta, rhomin, rhomax) / (nx * ny * nz)
+#         end
+#         sumdmax = 0.0
+#         for i in eachindex(density)
+#             sumdmax += transform(density[i], rhomaxbound, eta, rhomin, rhomax) / (nx * ny * nz)
+#         end
+#         sumdmid = 0.0
+#         for i in eachindex(density)
+#             sumdmid += transform(density[i], rhotr, eta, rhomin, rhomax) / (nx * ny * nz)
+#         end
+#         if (sumdmin - vf) / (sumdmid - vf) > 0
+#             rhominbound = rhotr
+#         elseif (sumdmax - vf) / (sumdmid - vf) > 0
+#             rhomaxbound = rhotr
+#         else
+#             println("problem out of bounds", sumdmax, sumdmin, sumdmid, vf)
+#         end
+#         error = abs(vf - sumdmid)
+#     end
+#     for i in eachindex(density)
+#         densloc = transform(density[i], rhotr, eta, rhomin, rhomax)
+#         density[i] = densloc
+#     end
+#     return density
+# end
+
 """
 function to perform topology optimization using UPM approach (2D case)
 ```
@@ -1244,7 +1290,8 @@ function top_upm!(par::DynamicParams, name_of_file::String, directory::String)
     grid = par.grid
     dh = par.dh
     E = par.E
-    nx = par.nx ; ny = par.ny ; nz = par.nz
+    # nx = par.nx ; ny = par.ny ; nz = par.nz
+    tnele = par.tnele
     E0 = par.E0 ; Emin = par.Emin ; Emax = par.Emax
     k = par.k ; γ = par.γ ; volfrac = par.vf; η = par.η; ρ0 = par.ρ0
     max_itr = par.max_itr ; tol = par.tol
@@ -1269,7 +1316,7 @@ function top_upm!(par::DynamicParams, name_of_file::String, directory::String)
         W_tot = sum(fem.U)
         Enew = update_upm!(k, E, H, Emax, Emin)
         ρ = transfer_to_density!(Enew, E0, ρ0, γ)
-        ρnew = filter_density_to_vf!(ρ, volfrac, nx, ny, nz, η)
+        ρnew = filter_density_to_vf!(ρ, volfrac, tnele, η)
         Enew_frac = transfer_to_young!(ρnew, E0, ρ0, γ, Emin, Emax)
 
         # Update E in par so that fem_solver uses the updated material distribution
@@ -1341,13 +1388,15 @@ end
 function to perform topology optimization using UPM approach (3D case)
 ```
 top_upm_3d!(par::DynamicParams, name_of_file::String, directory::String)
+
 ```
 """
 function top_upm_3d!(par::DynamicParams, name_of_file::String, directory::String)
     grid = par.grid
     dh = par.dh
     E = par.E
-    nx = par.nx ; ny = par.ny ; nz = par.nz
+    # nx = par.nx ; ny = par.ny ; nz = par.nz
+    tnele = par.tnele
     E0 = par.E0 ; Emin = par.Emin ; Emax = par.Emax
     k = par.k ; γ = par.γ ; volfrac = par.vf ; η = par.η ; ρ0 = par.ρ0
     max_itr = par.max_itr ; tol = par.tol
@@ -1375,7 +1424,7 @@ function top_upm_3d!(par::DynamicParams, name_of_file::String, directory::String
         # Material update routines
         Enew = update_upm!(k, E, H, Emax, Emin)
         ρ = transfer_to_density!(Enew, E0, ρ0, γ)
-        ρnew = filter_density_to_vf!(ρ, volfrac, nx, ny, nz, η)
+        ρnew = filter_density_to_vf!(ρ, volfrac, tnele, η)
         Enew_frac = transfer_to_young!(ρnew, E0, ρ0, γ, Emin, Emax)
 
         # Update par to reflect the new E distribution

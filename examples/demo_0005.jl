@@ -47,9 +47,11 @@ end
 
 # Define parameters for the plate and mesh
 Lx, Ly = 2.0, 1.0  # Plate dimensions
-par.nx, par.ny = 120, 60   # Number of elements along x and y
-par.nz = 1 # 2d problem
-grid = create_grid(Lx, Ly, par.nx, par.ny)  # Generate the grid
+nx, ny = 120, 60   # Number of elements along x and y
+
+grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
+par.tnele = length(grid.cells)  # Total number of elements
+
 par.grid = grid
 # Create DOF handler and constraints
 par.dh = create_dofhandler(grid)
@@ -72,7 +74,7 @@ par.Emax = 1.0              # Maximum Young's modulus
 par.ρ0 = 1.0                # Initial density
 par.tol = 1e-3           # Convergence tolerance
 par.γ = 1                # Penalty factor
-par.η = π / (3.0)              # Filter parameter
+par.η = π / (4.0)              # Filter parameter
 par.k = 4                   # Sensitivity parameter
 par.vf = 0.25          # Volume fraction
 

@@ -80,9 +80,10 @@ end
 
 # Main script
 Lx, Ly, Lz = 100.0, 100.0, 100.0
-par.nx, par.ny, par.nz = 20, 20, 20
+nx, ny, nz = 20, 20, 20
 
-grid = create_grid(Lx, Ly, Lz, par.nx, par.ny, par.nz)
+grid = create_grid(Lx, Ly, Lz, nx, ny, nz)
+par.tnele = length(grid.cells)  # Total number of elements
 create_boundary(grid, Lx, Ly, Lz)
 par.grid = grid
 par.dh = create_dofhandler(grid)
@@ -107,7 +108,7 @@ par.tol = 1e-3
 par.γ = 1
 par.η = π / (3.5)
 par.k = 4
-par.vf = 0.25
+par.vf = 0.5
 
 # Neumann BC
 par.Neumann_bc = "top_circle"

@@ -41,9 +41,10 @@ function create_bc(dh)
 end
 # Define parameters for the plate and mesh
 Lx, Ly = 2.0, 1.0  # Plate dimensions
-par.nx, par.ny = 120, 60   # Number of elements along x and y
-par.nz = 1 # 2d problem
-grid = create_grid(Lx, Ly, par.nx, par.ny)  # Generate the grid
+nx, ny = 120, 60   # Number of elements along x and y
+grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
+
+par.tnele = length(grid.cells)  # Total number of elements
 par.grid = grid
 # Create DOF handler and constraints
 par.dh = create_dofhandler(grid)
