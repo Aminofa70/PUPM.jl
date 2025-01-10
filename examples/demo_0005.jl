@@ -47,7 +47,7 @@ end
 
 # Define parameters for the plate and mesh
 Lx, Ly = 2.0, 1.0  # Plate dimensions
-nx, ny = 120, 60   # Number of elements along x and y
+nx, ny = 300, 150   # Number of elements along x and y
 
 grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
 par.tnele = length(grid.cells)  # Total number of elements
@@ -73,14 +73,14 @@ par.Emin = 1e-4             # Minimum Young's modulus
 par.Emax = 1.0              # Maximum Young's modulus
 par.ρ0 = 1.0                # Initial density
 par.tol = 1e-3           # Convergence tolerance
-par.γ = 1                # Penalty factor
-par.η = π / (4.0)              # Filter parameter
+par.γ = 3                # Penalty factor
+par.η = π / (3.2)              # Filter parameter
 par.k = 4                   # Sensitivity parameter
-par.vf = 0.25          # Volume fraction
+par.vf = 0.5          # Volume fraction
 
 par.max_itr = 200
 # Neumann BC 
-par.Neumann_bc = "nodal_force"
+par.Neumann_bc = Ferrite.getnodeset(grid, "nodal_force")  # Nodes on the edge
 
 file_name = "linear_elasticty"
 dir = "/Users/aminalibakhshi/Desktop/data_vtu"

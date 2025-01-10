@@ -1,38 +1,4 @@
 """
-function to calculate the mean of an array of numbers
-    ```
-    calculate_mean(numbers::Vector{<:Number}) 
-    ```
-
-"""
-function calculate_mean(numbers::Vector{<:Number})
-    # Check if the array is empty to avoid errors
-    if isempty(numbers)
-        error("Cannot calculate mean of an empty array")
-    end
-    # Calculate the mean
-    sum(numbers) / length(numbers)
-end
-
-"""
-
-
-"""
-function standard_deviation(data::AbstractVector{<:Number})
-    # Ensure the data is not empty
-    @assert length(data) > 1 "Data vector must have at least two elements."
-    
-    # Compute the mean
-    m = calculate_mean(data)
-    
-    # Compute the sum of squared differences from the mean
-    sum_sq_diff = sum((x - m)^2 for x in data)
-    
-    # Compute the sample standard deviation (note the division by n-1)
-    return sqrt(sum_sq_diff / (length(data) - 1))
-end
-
-"""
 function to remove vtu file 
 ```
 remove_vtk_files(directory::String)
@@ -105,20 +71,6 @@ function assemble_global!(K, dh, cell_values, E, ν)
 
     return K
 end
-
-# function assemble_global!(K, dh, cell_values, E, ν)
-#     n_basefuncs = getnbasefunctions(cell_values)
-#     ke = zeros(n_basefuncs, n_basefuncs)
-#     assembler = start_assemble(K)
-#     for (cell_index, cell) in enumerate(CellIterator(dh))
-#         reinit!(cell_values, cell)
-#         fill!(ke, 0.0)
-#         assemble_cell!(ke, cell_values, E[cell_index], ν)
-#         assemble!(assembler, celldofs(cell), ke)
-#     end
-#     return K
-# end
-# Function to assemble external forces from surface tractions
 """
 Function for  external forces from surface tractions
 ```
@@ -171,14 +123,103 @@ Function to apply nodal forces to external force vector
 apply_nodal_force!(grid, node_set_name, load_vector, f_ext)
 ```
 """
-function apply_nodal_force!(grid, node_set_name, load_vector, f_ext)
-    node_set = Ferrite.getnodeset(grid, node_set_name)
-    for node_id in node_set
-        f_ext[2*node_id-1] += load_vector[1]  # x-component
-        f_ext[2*node_id] += load_vector[2]      # y-component
+function vertexdofs(dh::DofHandler, vertexid::VertexIndex)
+    cellid, lvidx = vertexid
+    sdh = dh.subdofhandlers[dh.cell_to_subdofhandler[cellid]]
+    local_vertex_dofs = Int[]
+
+    for ifield in 1:length(sdh.field_names)
+        offset = Ferrite.field_offset(sdh, ifield)
+        field_dim = Ferrite.n_components(sdh, ifield)
+        field_ip = isa(sdh.field_interpolations[ifield], Ferrite.VectorizedInterpolation) ?
+                   sdh.field_interpolations[ifield].ip :
+                   sdh.field_interpolations[ifield]
+
+        vert = Ferrite.vertexdof_indices(field_ip)[lvidx]
+
+        for vdof in vert, d in 1:field_dim
+            push!(local_vertex_dofs, (vdof - 1) * field_dim + d + offset)
+        end
     end
-    return f_ext
+
+    dofs = zeros(Int, ndofs_per_cell(dh, cellid))
+    celldofs!(dofs, dh, cellid)
+
+    return dofs[local_vertex_dofs]
 end
+############################################
+function nodeid_to_vertexindex(grid::Grid, nodeid::Int)
+    for (cellid, cell) in enumerate(grid.cells)
+        for (i, nodeid2) in enumerate(cell.nodes)
+            if nodeid == nodeid2
+                return VertexIndex(cellid, i)
+            end
+        end
+    end
+    error("Node $(nodeid) does not belong to any cell")
+end
+############################################
+function apply_nodal_force!(grid, nodeid, load_vector, f, dh)
+    # Get the coordinates of the nodes
+    coords = [Ferrite.get_node_coordinate(grid, id) for id in nodeid]
+
+    # Determine if the edge is vertical (x constant) or horizontal (y constant)
+    is_vertical = all(abs(coords[1][1] - coord[1]) < 1e-8 for coord in coords)
+
+    # Set primary direction based on edge orientation
+    primary_direction = is_vertical ? 2 : 1  # 2 = y-direction, 1 = x-direction
+
+    # Convert OrderedSet to Vector for indexing
+    nodeid_vec = collect(nodeid)
+
+    # Check if there is only one node
+    if length(nodeid) == 1
+        # Handle the single-node case
+        single_node = nodeid[1]
+
+        # Get the vertex index and DOFs for this node
+        vertex = nodeid_to_vertexindex(grid, single_node)
+        dofs = vertexdofs(dh, vertex)
+
+        # Apply the entire load vector directly to this node's DOFs
+        f[dofs[1:2]] .+= load_vector
+    else
+        # Handle the multi-node case
+        # Sort nodes based on the primary direction
+        sorted_indices = sortperm([coord[primary_direction] for coord in coords])
+        sorted_nodeid = nodeid_vec[sorted_indices]
+
+        # Compute segment lengths (dy or dx) along the primary direction
+        sorted_coords = [coords[idx] for idx in sorted_indices]
+        segment_lengths = diff([coord[primary_direction] for coord in sorted_coords])
+
+        # Calculate the total length of the edge for proportional force distribution
+        total_length = sum(segment_lengths)
+
+        # Distribute forces among nodes proportionally to segment lengths
+        for i in eachindex(segment_lengths)
+            # Get the node IDs for the current segment
+            node1 = sorted_nodeid[i]
+            node2 = sorted_nodeid[i + 1]
+
+            # Calculate the segment's proportional contribution to the load vector
+            segment_force = load_vector * segment_lengths[i] / total_length
+
+            # Get the vertex indices and DOFs for the nodes
+            vertex1 = nodeid_to_vertexindex(grid, node1)
+            vertex2 = nodeid_to_vertexindex(grid, node2)
+            dofs1 = vertexdofs(dh, vertex1)
+            dofs2 = vertexdofs(dh, vertex2)
+
+            # Distribute half of the segment's force to each node
+            f[dofs1[1:2]] .+= segment_force / 2
+            f[dofs2[1:2]] .+= segment_force / 2
+        end
+    end
+
+    return f
+end
+
 # Function to calculate stresses
 """
 Function to calculate stresses
@@ -214,27 +255,7 @@ function calculate_stresses(grid, dh, cv, u, E, ν)
 
     return qp_stresses, avg_cell_stresses
 end
-# function calculate_stresses(grid, dh, cv, u, E, ν)
-#     qp_stresses = [
-#         [zero(SymmetricTensor{2,2}) for _ in 1:getnquadpoints(cv)]
-#         for _ in 1:getncells(grid)]
-#     avg_cell_stresses = tuple((zeros(getncells(grid)) for _ in 1:3)...)
-#     for (cell_index, cell) in enumerate(CellIterator(dh))
-#         reinit!(cv, cell)
-#         C = get_material_matrix(E[cell_index], ν)
-#         cell_stresses = qp_stresses[cellid(cell)]
-#         for q_point in 1:getnquadpoints(cv)
-#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
-#             cell_stresses[q_point] = C ⊡ ε
-#         end
-#         σ_avg = sum(cell_stresses) / getnquadpoints(cv)
-#         avg_cell_stresses[1][cellid(cell)] = σ_avg[1, 1]
-#         avg_cell_stresses[2][cellid(cell)] = σ_avg[2, 2]
-#         avg_cell_stresses[3][cellid(cell)] = σ_avg[1, 2]
-#     end
-#     return qp_stresses, avg_cell_stresses
-# end
-# Function to calculate strains
+
 """
 Function to calculate strains
 ```
@@ -288,23 +309,6 @@ function calculate_strain_energy(grid, dh, cv, u, E, ν)
     end
     return element_strain_energies
 end
-# function calculate_strain_energy(grid, dh, cv, u, E, ν)
-#     element_strain_energies = zeros(getncells(grid))
-#     for (cell_index, cell) in enumerate(CellIterator(dh))
-#         reinit!(cv, cell)
-#         C = get_material_matrix(E[cell_index], ν)
-#         cell_energy = 0.0
-#         for q_point in 1:getnquadpoints(cv)
-#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
-#             σ = C ⊡ ε
-#             W = 0.5 * tr(σ ⊡ ε)
-#             dΩ = getdetJdV(cv, q_point)
-#             cell_energy += W * dΩ
-#         end
-#         element_strain_energies[cellid(cell)] = cell_energy
-#     end
-#     return element_strain_energies
-# end
 
 """
 Function to calculate the derivative of the strain energy with respect to the Young's modulus
@@ -362,24 +366,7 @@ function calculate_H(grid, dh, cv, u, E, ν)
     end
     return element_strain_energy_derivatives
 end
-# function calculate_H(grid, dh, cv, u, E, ν)
-#     element_strain_energy_derivatives = zeros(getncells(grid))
-#     for (cell_index, cell) in enumerate(CellIterator(dh))
-#         reinit!(cv, cell)
-#         dC_dE = get_material_matrix_derivative_wrt_E(E[cell_index], ν)
-#         cell_derivative = 0.0
-#         for q_point in 1:getnquadpoints(cv)
-#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
-#             dσ_dE = dC_dE ⊡ ε
-#             dW_dE = 0.5 * tr(dσ_dE ⊡ ε)
-#             dΩ = getdetJdV(cv, q_point)
-#             cell_derivative += dW_dE * dΩ
-#         end
-#         cell_volume = calculate_cell_volume(cv)
-#         element_strain_energy_derivatives[cellid(cell)] = cell_derivative / cell_volume
-#     end
-#     return element_strain_energy_derivatives
-# end
+
 ######### average strain energy
 """
 Function to calculate the average strain energy
@@ -414,28 +401,6 @@ function calculate_average_strain_energy(grid, dh, cv, u, E, ν)
     end
     return element_strain_energies
 end
-# function calculate_average_strain_energy(grid, dh, cv, u, E, ν)
-#     element_strain_energies = zeros(getncells(grid))
-#     element_volumes = zeros(getncells(grid)) 
-
-#     for (cell_index, cell) in enumerate(CellIterator(dh))
-#         reinit!(cv, cell)
-#         C = get_material_matrix(E[cell_index], ν)
-#         cell_energy = 0.0
-#         cell_volume = 0.0
-#         for q_point in 1:getnquadpoints(cv)
-#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
-#             σ = C ⊡ ε
-#             W = 0.5 * tr(σ ⊡ ε)
-#             dΩ = getdetJdV(cv, q_point)
-#             cell_energy += W * dΩ
-#             cell_volume += dΩ  # 
-#         end
-#         element_strain_energies[cellid(cell)] = cell_energy / cell_volume
-#         element_volumes[cellid(cell)] = cell_volume
-#     end
-#     return element_strain_energies  
-# end
 
 struct LoadCondition
     load_type::String
@@ -486,7 +451,7 @@ function fem_solver(par::DynamicParams)
             if load.load_type == "traction_load"
                 assemble_external_forces!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
             elseif load.load_type == "nodal_load"
-                apply_nodal_force!(grid, Neumann_bc, load.load_data, f_ext)
+                apply_nodal_force!(grid, Neumann_bc, load.load_data, f_ext, dh)
             elseif load.load_type == "pressure_load"
                 assemble_external_pressure!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
             else
@@ -515,54 +480,7 @@ function fem_solver(par::DynamicParams)
     # Return the result
     return FEMSolver(u, c, σ, ε, U, H, ψ_avg)
 end
-
-# function fem_solver(par::DynamicParams)
-
-#     # grid, cell_values, facet_values, dh, ch, Neumann_bc, E, ν, loads::Vector{LoadCondition})
-#     grid = par.grid
-#     cell_values = par.cell_values
-#     facet_values = par.facet_values
-#     dh = par.dh
-#     ch = par.ch
-#     Neumann_bc = par.Neumann_bc
-#     E = par.E
-#     ν = par.ν
-#     loads = par.loads
-#     # Allocate and assemble global stiffness matrix
-#     K = allocate_matrix(dh)
-#     assemble_global!(K, dh, cell_values, E, ν)
-
-#     # Initialize external force vector
-#     f_ext = zeros(ndofs(dh))
-
-#     # Process each load condition and apply to Neumann_bc
-#     for load in loads
-#         if load.load_type == "traction_load"
-#             assemble_external_forces!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
-#         elseif load.load_type == "nodal_load"
-#             apply_nodal_force!(grid, Neumann_bc, load.load_data, f_ext)
-#         elseif load.load_type == "pressure_load"
-#             assemble_external_pressure!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
-#         else
-#             error("Unknown load type: $(load.load_type)")
-#         end
-#     end
-
-#     # Apply constraints and solve the system
-#     Ferrite.apply!(K, f_ext, ch)
-#     u = K \ f_ext  # Solve linear system
-#     c = 0.5 * dot(f_ext, u)
-
-#     # Calculate derived quantities
-#     _, σ = calculate_stresses(grid, dh, cell_values, u, E, ν)
-#     _, ε = calculate_strains(grid, dh, cell_values, u)
-#     U = calculate_strain_energy(grid, dh, cell_values, u, E, ν)
-#     H = calculate_H(grid, dh, cell_values, u, E, ν)
-#     ψ_avg = calculate_average_strain_energy(grid, dh, cell_values, u, E, ν)
-#     return FEMSolver(u, c, σ, ε, U, H, ψ_avg)
-# end
-
-
+##########################################################
 # # Example: Defining load conditions for Neumann_bc
 # loads = [
 #     LoadCondition("traction_load", [10.0, 0.0]),  # Traction load on Neumann_bc
@@ -572,7 +490,7 @@ end
 
 # # Call the solver with the load conditions
 # result = fem_solver(grid, cell_values, facet_values, dh, ch, Neumann_bc; E=E, ν=ν, loads=loads)
-
+##########################################################
 ###########################
 # 3D functions
 ### finite elements code for 3d cases
@@ -582,17 +500,92 @@ function to apply nodal forces to external force vector in 3D
 apply_nodal_force_3d!(grid, node_set_name, load_vector, f_ext)
 ```
 """
-function apply_nodal_force_3d!(grid, node_set_name, load_vector, f_ext)
-    # Get the nodes in the specified nodeset
-    node_set = getnodeset(grid, node_set_name)
+function apply_nodal_force_3d!(grid, node_ids, load_vector, f, dh)
+    # Get the coordinates of the nodes
+    node_coords = [Ferrite.get_node_coordinate(grid, id) for id in node_ids]
 
-    # Apply the load vector to each node in the nodeset
-    for node_id in node_set
-        f_ext[3*node_id-2] += load_vector[1]  
-        f_ext[3*node_id-1] += load_vector[2]  
-        f_ext[3*node_id] += load_vector[3]      
+    # Detect the primary edge direction by checking which coordinate is approximately constant
+    tolerance = 1e-8
+    is_x_constant = all(abs(node_coords[1][1] - coord[1]) < tolerance for coord in node_coords)
+    is_y_constant = all(abs(node_coords[1][2] - coord[2]) < tolerance for coord in node_coords)
+    is_z_constant = all(abs(node_coords[1][3] - coord[3]) < tolerance for coord in node_coords)
+
+    # Determine the primary and secondary directions
+    if is_x_constant
+        primary_direction = 2  # y-direction
+        secondary_direction = 3  # z-direction
+    elseif is_y_constant
+        primary_direction = 1  # x-direction
+        secondary_direction = 3  # z-direction
+    elseif is_z_constant
+        primary_direction = 1  # x-direction
+        secondary_direction = 2  # y-direction
+    else
+        error("The edge is not aligned with a primary axis!")
     end
+
+    # Convert node IDs (OrderedSet) to a Vector for indexing
+    node_id_vec = collect(node_ids)
+
+    # Handle the case for a single node
+    if length(node_ids) == 1
+        # Get the single node ID
+        single_node = node_ids[1]
+
+        # Get the vertex index for this node
+        vertex = nodeid_to_vertexindex(grid, single_node)
+
+        # Get the DOFs associated with this vertex
+        dofs = vertexdofs(dh, vertex)
+
+        # Apply the entire load vector directly to this node
+        for j in 1:3  # Iterate over x, y, z directions
+            f[dofs[j]] += load_vector[j]
+        end
+    else
+        # Sort nodes based on the primary and secondary directions for consistent ordering
+        sorted_indices = sortperm([(coord[primary_direction], coord[secondary_direction]) for coord in node_coords])
+        sorted_node_ids = node_id_vec[sorted_indices]
+
+        # Get the sorted coordinates for the nodes
+        sorted_coords = [node_coords[idx] for idx in sorted_indices]
+
+        # Compute segment lengths in full 3D space
+        segment_lengths = [
+            norm([
+                sorted_coords[i+1][j] - sorted_coords[i][j] for j in 1:3
+            ]) for i in 1:(length(sorted_coords)-1)
+        ]
+
+        # Map forces to the DOFs of nodes
+        total_length = sum(segment_lengths)
+        for i in eachindex(segment_lengths)
+            # Get the node IDs for the current segment
+            node1 = sorted_node_ids[i]
+            node2 = sorted_node_ids[i+1]
+
+            # Calculate the segment's contribution to the total force
+            segment_force = load_vector .* (segment_lengths[i] / total_length)  # Proportional to segment length
+
+            # Get the vertex indices for these nodes
+            vertex1 = nodeid_to_vertexindex(grid, node1)
+            vertex2 = nodeid_to_vertexindex(grid, node2)
+
+            # Get the DOFs associated with these vertices
+            dofs1 = vertexdofs(dh, vertex1)
+            dofs2 = vertexdofs(dh, vertex2)
+
+            # Distribute forces equally to the DOFs of node1 and node2
+            for j in 1:3  # Iterate over x, y, z directions
+                f[dofs1[j]] += segment_force[j] / 2  # Half the force to node1
+                f[dofs2[j]] += segment_force[j] / 2  # Half the force to node2
+            end
+        end
+    end
+
+    return f
 end
+
 ##############################################
 ##############################################
 
@@ -665,19 +658,6 @@ function assemble_global_3d!(K, dh, cell_values, E, ν)
     end
     return K
 end
-# function assemble_global_3d!(K, dh, cell_values, E, ν)
-#     n_basefuncs = getnbasefunctions(cell_values)
-#     ke = zeros(n_basefuncs, n_basefuncs)
-#     assembler = start_assemble(K)
-
-#     for (cell_index, cell) in enumerate(CellIterator(dh))
-#         reinit!(cell_values, cell)
-#         fill!(ke, 0.0)
-#         assemble_cell_3d!(ke, cell_values, E[cell_index], ν)
-#         assemble!(assembler, celldofs(cell), ke)
-#     end
-#     return K
-# end
 ########## traction surface forces
 """
 function to assemble external forces from surface tractions in 3D
@@ -763,34 +743,7 @@ function calculate_stresses_3d(grid, dh, cv, u, E, ν)
     end
     return qp_stresses, avg_cell_stresses
 end
-# function calculate_stresses_3d(grid, dh, cv, u, E, ν)
-#     # Initialize containers for stresses
-#     qp_stresses = [
-#         [zero(SymmetricTensor{2,3}) for _ in 1:getnquadpoints(cv)]
-#         for _ in 1:getncells(grid)]
-#     avg_cell_stresses = tuple((zeros(getncells(grid)) for _ in 1:6)...)  # 3D Voigt format
 
-#     for (cell_index, cell) in enumerate(CellIterator(dh))
-#         reinit!(cv, cell)
-#         C = get_material_matrix_3d(E[cell_index], ν)
-#         cell_stresses = qp_stresses[cellid(cell)]
-
-#         for q_point in 1:getnquadpoints(cv)
-#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
-#             cell_stresses[q_point] = C ⊡ ε
-#         end
-
-#         # Average stresses for the cell
-#         σ_avg = sum(cell_stresses) / getnquadpoints(cv)
-#         avg_cell_stresses[1][cellid(cell)] = σ_avg[1, 1]
-#         avg_cell_stresses[2][cellid(cell)] = σ_avg[2, 2]
-#         avg_cell_stresses[3][cellid(cell)] = σ_avg[3, 3]
-#         avg_cell_stresses[4][cellid(cell)] = σ_avg[1, 2]
-#         avg_cell_stresses[5][cellid(cell)] = σ_avg[2, 3]
-#         avg_cell_stresses[6][cellid(cell)] = σ_avg[1, 3]
-#     end
-#     return qp_stresses, avg_cell_stresses
-# end
 ########## strains
 ##############################################################################
 ##############################################################################
@@ -864,27 +817,6 @@ function calculate_strain_energy_3d(grid, dh, cv, u, E, ν)
     end
     return element_strain_energies
 end
-# function calculate_strain_energy_3d(grid, dh, cv, u, E, ν)
-#     # Initialize the strain energy array
-#     element_strain_energies = zeros(getncells(grid))
-
-#     for (cell_index, cell) in enumerate(CellIterator(dh))
-#         reinit!(cv, cell)
-#         C = get_material_matrix_3d(E[cell_index], ν)
-#         cell_energy = 0.0
-
-#         for q_point in 1:getnquadpoints(cv)
-#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
-#             σ = C ⊡ ε
-#             W = 0.5 * tr(σ ⊡ ε)
-#             dΩ = getdetJdV(cv, q_point)
-#             cell_energy += W * dΩ
-#         end
-
-#         element_strain_energies[cellid(cell)] = cell_energy
-#     end
-#     return element_strain_energies
-# end
 
 """
 function to get the derivative of the material matrix with respect to the Young's modulus in 3D
@@ -949,28 +881,7 @@ function calculate_H_3d(grid, dh, cv, u, E, ν)
     return element_strain_energy_derivatives
 end
 # function calculate_H_3d(grid, dh, cv, u, E, ν)
-#     # Initialize the derivatives array
-#     element_strain_energy_derivatives = zeros(getncells(grid))
 
-#     for (cell_index, cell) in enumerate(CellIterator(dh))
-#         reinit!(cv, cell)
-#         C = get_material_matrix_3d(E[cell_index], ν)
-#         dC_dE = get_material_matrix_derivative_wrt_E_3d(E[cell_index], ν)
-#         cell_derivative = 0.0
-
-#         for q_point in 1:getnquadpoints(cv)
-#             ε = function_symmetric_gradient(cv, q_point, u, celldofs(cell))
-#             dσ_dE = dC_dE ⊡ ε
-#             dW_dE = 0.5 * tr(dσ_dE ⊡ ε)
-#             dΩ = getdetJdV(cv, q_point)
-#             cell_derivative += dW_dE * dΩ
-#         end
-
-#         cell_volume = calculate_cell_volume_3d(cv)
-#         element_strain_energy_derivatives[cellid(cell)] = cell_derivative / cell_volume
-#     end
-#     return element_strain_energy_derivatives
-# end
 # Struct for load conditions in 3D
 struct LoadCondition_3d
     load_type::String
@@ -1020,7 +931,7 @@ function fem_solver_3d(par::DynamicParams)
             if load.load_type == "traction_load"
                 assemble_external_forces_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
             elseif load.load_type == "nodal_load"
-                apply_nodal_force_3d!(grid, Neumann_bc, load.load_data, f_ext)
+                apply_nodal_force_3d!(grid, Neumann_bc, load.load_data, f_ext, dh)
             elseif load.load_type == "pressure_load"
                 assemble_external_pressure_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
             else
@@ -1048,53 +959,6 @@ function fem_solver_3d(par::DynamicParams)
     # Return solver results
     return FEMSolver_3d(u, c, σ, ε, U, H)
 end
-
-
-# function fem_solver_3d(par::DynamicParams)
-#     #grid, cell_values, facet_values, dh, ch, Neumann_bc, E, ν, loads::Vector{LoadCondition_3d}
-#     grid = par.grid
-#     cell_values = par.cell_values
-#     facet_values = par.facet_values
-#     dh = par.dh
-#     ch = par.ch
-#     Neumann_bc = par.Neumann_bc
-#     E = par.E
-#     ν = par.ν
-#     loads = par.loads
-#     # Allocate and assemble global stiffness matrix
-#     K = allocate_matrix(dh)  # Allocate stiffness matrix
-#     assemble_global_3d!(K, dh, cell_values, E, ν)
-
-#     # Initialize external force vector
-#     f_ext = zeros(ndofs(dh))
-
-#     # Process each load condition and apply to Neumann boundary conditions
-#     for load in loads
-#         if load.load_type == "traction_load"
-#             assemble_external_forces_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
-#         elseif load.load_type == "nodal_load"
-#             apply_nodal_force_3d!(grid, Neumann_bc, load.load_data, f_ext)
-#         elseif load.load_type == "pressure_load"
-#             assemble_external_pressure_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
-#         else
-#             error("Unknown load type: $(load.load_type)")
-#         end
-#     end
-
-#     # Apply constraints and solve the linear system
-#     apply!(K, f_ext, ch)  # Apply constraints
-#     u = K \ f_ext         # Solve the system Ku = f_ext
-#     c = 0.5 * dot(f_ext, u)  # Compute compliance
-
-#     # # Calculate derived quantities
-#      _, σ = calculate_stresses_3d(grid, dh, cell_values, u, E, ν)  # Stresses
-#     _, ε = calculate_strains_3d(grid, dh, cell_values, u)         # Strains
-#     U = calculate_strain_energy_3d(grid, dh, cell_values, u, E, ν)  # Strain energy
-#     H = calculate_H_3d(grid, dh, cell_values, u, E, ν)            # Derived quantity H
-
-#     # Return solver results
-#     return FEMSolver_3d(u, c, σ, ε, U, H)
-# end
 
 ###################### functions for topology optimization based on UPM approach
 
@@ -1234,51 +1098,6 @@ function filter_density_to_vf!(density, vf, tnele, eta)
     return density
 end
 
-# function filter_density_to_vf!(density, vf, nx, ny, nz, eta)
-#     rhomin, rhomax = 0.01, 1.
-#     function transform(rholoc, rhotr, eta, rhomin, rhomax)
-#         if rholoc < rhotr
-#             rhotrans = rhomin  
-#         elseif rholoc > rhotr + 1.0/tan(eta)
-#             rhotrans = rhomax
-#         else
-#             rhotrans = tan(eta) * (rholoc - rhotr)
-#         end
-#         return rhotrans
-#     end
-#     rhomaxbound = -1.0/tan(eta)  # minimum that gives a vf of 0
-#     rhominbound = 1.0  # maximum that gives a vf of 1
-#     error = 10.0  # just put a high number
-#     rhotr = 0.0  # Initialize rhotr before the loop
-#     while error > 0.001
-#         rhotr = (rhominbound + rhomaxbound) / 2  # this is the initial point
-#         sumdmin = 0.0
-#         for i in eachindex(density)
-#             sumdmin += transform(density[i], rhominbound, eta, rhomin, rhomax) / (nx * ny * nz)
-#         end
-#         sumdmax = 0.0
-#         for i in eachindex(density)
-#             sumdmax += transform(density[i], rhomaxbound, eta, rhomin, rhomax) / (nx * ny * nz)
-#         end
-#         sumdmid = 0.0
-#         for i in eachindex(density)
-#             sumdmid += transform(density[i], rhotr, eta, rhomin, rhomax) / (nx * ny * nz)
-#         end
-#         if (sumdmin - vf) / (sumdmid - vf) > 0
-#             rhominbound = rhotr
-#         elseif (sumdmax - vf) / (sumdmid - vf) > 0
-#             rhomaxbound = rhotr
-#         else
-#             println("problem out of bounds", sumdmax, sumdmin, sumdmid, vf)
-#         end
-#         error = abs(vf - sumdmid)
-#     end
-#     for i in eachindex(density)
-#         densloc = transform(density[i], rhotr, eta, rhomin, rhomax)
-#         density[i] = densloc
-#     end
-#     return density
-# end
 
 """
 function to perform topology optimization using UPM approach (2D case)

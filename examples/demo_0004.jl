@@ -73,17 +73,18 @@ par.Emax = 1.0              # Maximum Young's modulus
 par.ρ0 = 1.0                # Initial density
 par.tol = 1e-3            # Convergence tolerance
 par.γ = 3               # Penalty factor
-par.η = π / (3.5)              # Filter parameter
+par.η = π / (3.0)              # Filter parameter
 par.k = 8                   # Sensitivity parameter
 par.vf = 0.5          # Volume fraction
 par.max_itr = 200
 # Neumann BC 
-par.Neumann_bc = "nodal_force"
+par.Neumann_bc = Ferrite.getnodeset(grid, "nodal_force")  # Nodes on the edge
 file_name = "linear_elasticty"
 dir = "/Users/aminalibakhshi/Desktop/data_vtu"
 remove_vtk_files(dir)
 # Run the topology optimization
 top_upm!(par, file_name, dir)
+
 
 
 end 

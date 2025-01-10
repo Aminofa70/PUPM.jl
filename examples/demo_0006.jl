@@ -38,7 +38,8 @@ function create_boundary(grid, Lx, Ly, Lz)
     ]
 
     # Add nodeset for the top surface inside the circle
-    addnodeset!(grid, "top_circle", x -> in_circle(x, r_top, cx_top, cy_top, Lz))
+    # addnodeset!(grid, "top_circle", x -> in_circle(x, r_top, cx_top, cy_top, Lz))
+    addfacetset!(grid, "top_circle", x -> in_circle(x, r_top, cx_top, cy_top, Lz))
 
     # Add nodesets for each bottom corner circle
     for (i, (cx, cy)) in enumerate(corner_centers)
@@ -80,7 +81,7 @@ end
 
 # Main script
 Lx, Ly, Lz = 100.0, 100.0, 100.0
-nx, ny, nz = 20, 20, 20
+nx, ny, nz = 15, 15, 15
 
 grid = create_grid(Lx, Ly, Lz, nx, ny, nz)
 par.tnele = length(grid.cells)  # Total number of elements
@@ -92,7 +93,8 @@ par.ch = create_bc(par.dh, grid)
 par.cell_values, par.facet_values = create_values()
 
 
-par.loads = [LoadCondition_3d("nodal_load", [0.0, 0.0, 1.0])]
+#par.loads = [LoadCondition_3d("nodal_load", [0.0, 0.0, 1.0])]
+par.loads = [LoadCondition_3d("traction_load", [0.0, 0.0, 1.0])]
 
 
 # Material properties
@@ -106,12 +108,14 @@ par.Emax = 1.0
 par.ρ0 = 1.0
 par.tol = 1e-3
 par.γ = 1
-par.η = π / (3.5)
-par.k = 4
+par.η = π / (3.0)
+par.k = 2
 par.vf = 0.5
 
 # Neumann BC
-par.Neumann_bc = "top_circle"
+# par.Neumann_bc = Ferrite.getnodeset(grid, "top_circle")  # Nodes on the edge
+par.Neumann_bc = Ferrite.getfacetset(grid, "top_circle")  # Nodes on the edge
+
 
 file_name = "linear_elasticity_3d"
 dir = "/Users/aminalibakhshi/Desktop/data_vtu"

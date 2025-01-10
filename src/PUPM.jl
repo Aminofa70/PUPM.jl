@@ -15,6 +15,8 @@ export assemble_cell!
 export assemble_global!
 export assemble_external_forces!
 export assemble_external_pressure!
+export vertexdofs
+export nodeid_to_vertexindex
 export apply_nodal_force!
 export calculate_stresses
 export calculate_strains
