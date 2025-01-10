@@ -37,7 +37,7 @@ function create_bc(dh)
     return ch
 end
 Lx, Ly = 1.0, 1.0  
-nx, ny = 1000, 1000   
+nx, ny = 10, 10   
 par.grid = create_grid(Lx, Ly, nx, ny)
 par.dh = create_dofhandler(par.grid)
 par.ch = create_bc(par.dh)
