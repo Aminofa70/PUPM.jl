@@ -80,10 +80,10 @@ par.max_itr = 200
 # Neumann BC 
 par.Neumann_bc = Ferrite.getnodeset(grid, "nodal_force")  # Nodes on the edge
 file_name = "linear_elasticty"
-dir = "/Users/aminalibakhshi/Desktop/data_vtu"
+dir = "/Users/aminalibakhshi/Desktop/pump_vtu"
 remove_vtk_files(dir)
 # Run the topology optimization
-top_upm!(par, file_name, dir)
+top_upm(par, file_name, dir)
 
 
 

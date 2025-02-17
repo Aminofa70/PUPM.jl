@@ -42,18 +42,18 @@ export calculate_strain_energy_3d
 export get_material_matrix_derivative_wrt_E_3d
 export calculate_cell_volume_3d
 export calculate_H_3d
-export compute_nodal_data_3D!
+export compute_nodal_data_3D
 export LoadCondition_3d
 export fem_solver_3d
 ################################
 include("function_fem_3d.jl")
-export update_upm!
-export transfer_to_density!
-export transfer_to_young!
-export filter_density_to_vf!
-export upm_update!
-export top_upm!
-export top_upm_3d!
+export update_upm
+export transfer_to_density
+export transfer_to_young
+export filter_density_to_vf
+export upm_update
+export top_upm
+export top_upm_3d
 include("optim_function.jl")
 ################################
 ####### optimization functions

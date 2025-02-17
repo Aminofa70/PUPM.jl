@@ -118,12 +118,12 @@ par.Neumann_bc = Ferrite.getfacetset(grid, "top_circle")  # Nodes on the edge
 
 
 file_name = "linear_elasticity_3d"
-dir = "/Users/aminalibakhshi/Desktop/data_vtu"
+dir = "/Users/aminalibakhshi/Desktop/pump_vtu"
 par.max_itr = 300
 remove_vtk_files(dir)
 # fem example
 #fem = fem_solver_3d(par) 
 # Run topology optimization
-top_upm_3d!(par, file_name, dir)
+top_upm_3d(par, file_name, dir)
 
 end 

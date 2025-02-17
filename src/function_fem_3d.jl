@@ -389,7 +389,7 @@ function calculate_H_3d(grid, dh, cv, u, E, ν)
     return element_strain_energy_derivatives
 end
 # function calculate_H_3d(grid, dh, cv, u, E, ν)
-function compute_nodal_data_3D!(grid, element_data)
+function compute_nodal_data_3D(grid, element_data)
     nnodes = Ferrite.getnnodes(grid)  # Total number of nodes
     
     nodal_data = zeros(Float64, nnodes)  # Initialize nodal data array
@@ -489,7 +489,7 @@ function fem_solver_3d(par::DynamicParams)
     U = calculate_strain_energy_3d(grid, dh, cell_values, u, E, ν)  # Strain energy
     H = calculate_H_3d(grid, dh, cell_values, u, E, ν)            # Derived quantity H
     
-    E_node = compute_nodal_data_3D!(grid, E)
+    E_node = compute_nodal_data_3D(grid, E)
 
     # Return solver results
     return FEMSolver_3d(u, c, σ, ε, U, H,E_node)

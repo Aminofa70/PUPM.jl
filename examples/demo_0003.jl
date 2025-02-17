@@ -74,10 +74,10 @@ par.vf = 0.5                # Volume fraction
 par.Neumann_bc = getfacetset(grid, "traction")
 
 file_name = "linear_elasticty"
-dir = "/Users/aminalibakhshi/Desktop/data_vtu"
+dir = "/Users/aminalibakhshi/Desktop/pump_vtu"
 remove_vtk_files(dir)
 # Run the topology optimization
 par.max_itr = 200
-top_upm!(par, file_name, dir)
+top_upm(par, file_name, dir)
 
 end 

@@ -16,7 +16,7 @@ Enew = update_upm!(k, E, H,Emax,Emin)
 
 ````
 """
-function update_upm!(k::Int64, E::Array{Float64,1}, H::Array{Float64,1}, Emax::Float64, Emin::Float64)
+function update_upm(k::Int64, E::Array{Float64,1}, H::Array{Float64,1}, Emax::Float64, Emin::Float64)
     Enew = copy(E)
     # H_mean = calculate_mean(H)
     # H_std = standard_deviation(H)
@@ -40,12 +40,12 @@ Enew = rand(Float64, 5)
 E0 = 1.0
 ρ0 = 1.0
 γ = 1
-ρ = transfer_to_density!(Enew, E0, ρ0, γ)
+ρ = transfer_to_density(Enew, E0, ρ0, γ)
 
 
 ````
 """
-function transfer_to_density!(Enew::Array{Float64,1}, E0::Float64, ρ0::Float64, γ::Int64)
+function transfer_to_density(Enew::Array{Float64,1}, E0::Float64, ρ0::Float64, γ::Int64)
     ρmin, ρmax = 0.0, 1.0
 
     ρ = ρ0 .* ((Enew / E0) .^ (1 / γ))
@@ -65,10 +65,10 @@ E0 = 1.0
 Emin = 1e-4
 Emax = 1.0
 
-transfer_to_young!(ρnew , E0, ρ0, γ, Emin , Emax)
+transfer_to_young(ρnew , E0, ρ0, γ, Emin , Emax)
 
 """
-function transfer_to_young!(ρnew::Array{Float64,1}, E0::Float64,
+function transfer_to_young(ρnew::Array{Float64,1}, E0::Float64,
     ρ0::Float64, γ::Int64, Emin::Float64, Emax::Float64)
 
     Enew = E0 * (ρnew / ρ0) .^ γ
@@ -87,10 +87,10 @@ nx, ny , nz = 2 , 2 , 2
 vf = 0.5
 η = π/4
 
-ρ =  filter_density_to_vf!(ρnew, vf, nx, ny, nz, η)
+ρ =  filter_density_to_vf(ρnew, vf, nx, ny, nz, η)
 ```
 """
-function filter_density_to_vf!(density, vf, tnele, eta)
+function filter_density_to_vf(density, vf, tnele, eta)
     rhomin, rhomax = 0.01, 1.
     function transform(rholoc, rhotr, eta, rhomin, rhomax)
         if rholoc < rhotr
@@ -140,10 +140,10 @@ end
 """
 function to perform topology optimization using UPM approach (2D case)
 ```
-top_upm!(par::DynamicParams, name_of_file::String, directory::String)
+top_upm(par::DynamicParams, name_of_file::String, directory::String)
 ```    
 """
-function top_upm!(par::DynamicParams, name_of_file::String, directory::String)
+function top_upm(par::DynamicParams, name_of_file::String, directory::String)
     grid = par.grid
     dh = par.dh
     E = par.E
@@ -171,10 +171,10 @@ function top_upm!(par::DynamicParams, name_of_file::String, directory::String)
         compliance = fem.compliance
         H = fem.H
         W_tot = sum(fem.U)
-        Enew = update_upm!(k, E, H, Emax, Emin)
-        ρ = transfer_to_density!(Enew, E0, ρ0, γ)
-        ρnew = filter_density_to_vf!(ρ, volfrac, tnele, η)
-        Enew_frac = transfer_to_young!(ρnew, E0, ρ0, γ, Emin, Emax)
+        Enew = update_upm(k, E, H, Emax, Emin)
+        ρ = transfer_to_density(Enew, E0, ρ0, γ)
+        ρnew = filter_density_to_vf(ρ, volfrac, tnele, η)
+        Enew_frac = transfer_to_young(ρnew, E0, ρ0, γ, Emin, Emax)
 
         # Update E in par so that fem_solver uses the updated material distribution
         par.E = Enew_frac
@@ -247,11 +247,11 @@ end
 """
 function to perform topology optimization using UPM approach (3D case)
 ```
-top_upm_3d!(par::DynamicParams, name_of_file::String, directory::String)
+top_upm_3d(par::DynamicParams, name_of_file::String, directory::String)
 
 ```
 """
-function top_upm_3d!(par::DynamicParams, name_of_file::String, directory::String)
+function top_upm_3d(par::DynamicParams, name_of_file::String, directory::String)
     grid = par.grid
     dh = par.dh
     E = par.E
@@ -282,10 +282,10 @@ function top_upm_3d!(par::DynamicParams, name_of_file::String, directory::String
         W_tot = sum(fem.U)
 
         # Material update routines
-        Enew = update_upm!(k, E, H, Emax, Emin)
-        ρ = transfer_to_density!(Enew, E0, ρ0, γ)
-        ρnew = filter_density_to_vf!(ρ, volfrac, tnele, η)
-        Enew_frac = transfer_to_young!(ρnew, E0, ρ0, γ, Emin, Emax)
+        Enew = update_upm(k, E, H, Emax, Emin)
+        ρ = transfer_to_density(Enew, E0, ρ0, γ)
+        ρnew = filter_density_to_vf(ρ, volfrac, tnele, η)
+        Enew_frac = transfer_to_young(ρnew, E0, ρ0, γ, Emin, Emax)
 
         # Update par to reflect the new E distribution
         par.E = Enew_frac
