@@ -50,7 +50,7 @@ include("function_fem_3d.jl")
 export update_upm
 export transfer_to_density
 export transfer_to_young
-export filter_density_to_vf
+export filter_density_to_vf!
 export upm_update
 export top_upm
 export top_upm_3d

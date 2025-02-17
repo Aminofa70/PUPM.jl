@@ -87,10 +87,10 @@ nx, ny , nz = 2 , 2 , 2
 vf = 0.5
 η = π/4
 
-ρ =  filter_density_to_vf(ρnew, vf, nx, ny, nz, η)
+ρ =  filter_density_to_vf!(ρnew, vf, nx, ny, nz, η)
 ```
 """
-function filter_density_to_vf(density, vf, tnele, eta)
+function filter_density_to_vf!(density, vf, tnele, eta)
     rhomin, rhomax = 0.01, 1.
     function transform(rholoc, rhotr, eta, rhomin, rhomax)
         if rholoc < rhotr
@@ -173,7 +173,7 @@ function top_upm(par::DynamicParams, name_of_file::String, directory::String)
         W_tot = sum(fem.U)
         Enew = update_upm(k, E, H, Emax, Emin)
         ρ = transfer_to_density(Enew, E0, ρ0, γ)
-        ρnew = filter_density_to_vf(ρ, volfrac, tnele, η)
+        ρnew = filter_density_to_vf!(ρ, volfrac, tnele, η)
         Enew_frac = transfer_to_young(ρnew, E0, ρ0, γ, Emin, Emax)
 
         # Update E in par so that fem_solver uses the updated material distribution
@@ -284,7 +284,7 @@ function top_upm_3d(par::DynamicParams, name_of_file::String, directory::String)
         # Material update routines
         Enew = update_upm(k, E, H, Emax, Emin)
         ρ = transfer_to_density(Enew, E0, ρ0, γ)
-        ρnew = filter_density_to_vf(ρ, volfrac, tnele, η)
+        ρnew = filter_density_to_vf!(ρ, volfrac, tnele, η)
         Enew_frac = transfer_to_young(ρnew, E0, ρ0, γ, Emin, Emax)
 
         # Update par to reflect the new E distribution
