@@ -67,8 +67,8 @@ pressure_value = 1e10  # Example pressure in Pascals
 par.loads = [LoadCondition("pressure_load", pressure_value)]  # Load applied to "pressure" facet
 
 # Material properties
-# par.E = fill(210e9, nx * ny)  # Young's modulus (Pa)
-par.E = 210e9
+par.E = fill(210e9, nx * ny)  # Young's modulus (Pa)
+#par.E = 210e9
 par.ν = 0.3 # Poisson's ratio
 
 # Neumann BC facet set

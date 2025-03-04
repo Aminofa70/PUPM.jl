@@ -26,6 +26,7 @@ export calculate_average_strain_energy
 export compute_nodal_data
 export LoadCondition
 export fem_solver
+export fem_solver_combine
 include("function_fem_2d.jl")
 
 ################################
@@ -45,15 +46,21 @@ export calculate_H_3d
 export compute_nodal_data_3D
 export LoadCondition_3d
 export fem_solver_3d
+export fem_solver_3d_combine
 ################################
 include("function_fem_3d.jl")
 export update_upm
 export transfer_to_density
 export transfer_to_young
 export filter_density_to_vf!
-export upm_update
+#export upm_update
 export top_upm
 export top_upm_3d
+
+export top_upm_combine
+export top_upm_3d_combine
+export optim_2D_combine
+export optim_3D_combine
 include("optim_function.jl")
 ################################
 ####### optimization functions

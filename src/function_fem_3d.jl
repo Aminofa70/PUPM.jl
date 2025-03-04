@@ -494,3 +494,62 @@ function fem_solver_3d(par::DynamicParams)
     # Return solver results
     return FEMSolver_3d(u, c, σ, ε, U, H,E_node)
 end
+###########################################################
+###########################################################
+###########################################################
+function fem_solver_3d_combine(par::DynamicParams , E)
+    # Extract common parameters from the input
+    grid = par.grid
+    cell_values = par.cell_values
+    facet_values = par.facet_values
+    dh = par.dh
+    ch = par.ch
+    # E = par.E
+    ν = par.ν
+
+    # Allocate and assemble the global stiffness matrix
+    K = allocate_matrix(dh)
+    assemble_global_3d!(K, dh, cell_values, E, ν)
+
+    # Initialize external force vector
+    f_ext = zeros(ndofs(dh))
+
+    # Check if Neumann_bc and loads are not empty
+    if !isempty(par.Neumann_bc) && !isempty(par.loads)
+        Neumann_bc = par.Neumann_bc
+        loads = par.loads
+
+        for load in loads
+            if load.load_type == "traction_load"
+                assemble_external_forces_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
+            elseif load.load_type == "nodal_load"
+                apply_nodal_force_3d!(grid, Neumann_bc, load.load_data, f_ext, dh)
+            elseif load.load_type == "pressure_load"
+                assemble_external_pressure_3d!(f_ext, dh, Neumann_bc, facet_values, load.load_data)
+            else
+                error("Unknown load type: $(load.load_type)")
+            end
+        end
+    end
+
+    # Handle the case when Neumann_bc or loads are empty
+    if isempty(par.Neumann_bc) || isempty(par.loads)
+        println("Warning: Either Neumann boundary conditions or loads are empty. Proceeding without external forces.")
+    end
+
+    # Apply constraints and solve the system
+    apply!(K, f_ext, ch)  # Apply constraints
+    u = K \ f_ext         # Solve the system Ku = f_ext
+    c = 0.5 * dot(f_ext, u)  # Compute compliance
+
+    # Calculate derived quantities
+    _, σ = calculate_stresses_3d(grid, dh, cell_values, u, E, ν)  # Stresses
+    _, ε = calculate_strains_3d(grid, dh, cell_values, u)         # Strains
+    U = calculate_strain_energy_3d(grid, dh, cell_values, u, E, ν)  # Strain energy
+    H = calculate_H_3d(grid, dh, cell_values, u, E, ν)            # Derived quantity H
+    
+    E_node = compute_nodal_data_3D(grid, E)
+
+    # Return solver results
+    return FEMSolver_3d(u, c, σ, ε, U, H,E_node)
+end

@@ -358,3 +358,313 @@ function top_upm_3d(par::DynamicParams, name_of_file::String, directory::String)
         Ferrite.write_cellset(vtk, grid)
     end
 end
+
+###################################################################
+###################################################################
+
+function top_upm_combine(par::DynamicParams, E, k, γ, η ,volfrac, name_of_file::String, directory::String)
+    grid = par.grid
+    dh = par.dh
+    #E = par.E
+    # nx = par.nx ; ny = par.ny ; nz = par.nz
+    tnele = par.tnele
+    E0 = par.E0 ; Emin = par.Emin ; Emax = par.Emax
+    #k = par.k ; γ = par.γ ; volfrac = par.vf; 
+    #η = par.η; 
+    ρ0 = par.ρ0
+    max_itr = par.max_itr ; tol = par.tol
+
+    loop = 1
+
+    ## Initial FEM solve
+    fem = fem_solver_combine(par , E)
+    compliance = fem.compliance
+    H = fem.H
+    W_tot = sum(fem.U)
+    strain_energy_vector = [W_tot, W_tot * 10]
+    A = (strain_energy_vector[2] - strain_energy_vector[1]) / strain_energy_vector[1]
+
+    ## println("Iter $loop: C = $compliance, ΔR = $A")
+
+    ## Iterative optimization loop
+    while abs(A) > tol && loop <= max_itr
+        fem = fem_solver_combine(par , E)
+        compliance = fem.compliance
+        H = fem.H
+        W_tot = sum(fem.U)
+        
+        if volfrac == 0.0
+            # Enew = update_young_UPM(k, E, H, Emax, Emin, E0, γ)
+            Enew = update_upm(k, E, H, Emax, Emin)
+            Enew_frac = Enew
+        elseif volfrac > 0.0
+            # Enew = update_young_UPM(k, E, H, Emax, Emin, E0, γ)
+            Enew = update_upm(k, E, H, Emax, Emin)
+            ρ = transfer_to_density(Enew, E0, ρ0, γ)
+            ρnew = filter_density_to_vf!(ρ, volfrac, tnele, η)
+            Enew_frac = transfer_to_young(ρnew, E0, ρ0, γ, Emin, Emax)
+        else
+            error("Invalid value for volfrac")
+        end
+
+        # Update E in par so that fem_solver uses the updated material distribution
+        # par.E = Enew_frac
+        E = Enew_frac
+
+        fem = fem_solver_combine(par , E)
+        compliance = fem.compliance
+        H = fem.H
+        W_tot = sum(fem.U)
+       
+        strain_energy_vector[1] = strain_energy_vector[2]
+        strain_energy_vector[2] = W_tot
+        A = (strain_energy_vector[2] - strain_energy_vector[1]) / strain_energy_vector[1]
+
+        loop += 1
+        ## println("Iter $loop: C = $compliance, ΔR = $A")
+
+    end
+
+    ## Handle termination
+    if loop > max_itr
+        compliance = -1
+    end
+
+    # Final write
+    fem = fem_solver_combine(par , E)
+    compliance = fem.compliance
+    u = fem.u
+    U = fem.U
+    σ = fem.σ
+    ε = fem.ε
+    E_node = fem.E_node
+    full_path = joinpath(directory, name_of_file)
+
+    VTKGridFile(full_path, dh) do vtk
+        write_solution(vtk, dh, u)
+        for (j, key) in enumerate(("11", "22", "12"))
+            write_cell_data(vtk, σ[j], "stress_" * key)
+        end
+        for (j, key) in enumerate(("11", "22", "12"))
+            write_cell_data(vtk, ε[j], "strain_" * key)
+        end
+        write_cell_data(vtk, E, "Young's modulus")
+        write_cell_data(vtk, U, "Strain Energy")
+        write_node_data(vtk, E_node, "Nodal Young's modulus")
+        Ferrite.write_cellset(vtk, grid)
+    end
+
+    return compliance
+end
+
+###############################################
+###############################################
+function top_upm_3d_combine(par::DynamicParams, E, k, γ, η ,volfrac, name_of_file::String, directory::String)
+    grid = par.grid
+    dh = par.dh
+    #E = par.E
+    # nx = par.nx ; ny = par.ny ; nz = par.nz
+    tnele = par.tnele
+    E0 = par.E0 ; Emin = par.Emin ; Emax = par.Emax
+    #k = par.k ; γ = par.γ ; volfrac = par.vf; 
+    #η = par.η; 
+    ρ0 = par.ρ0
+    max_itr = par.max_itr ; tol = par.tol
+
+
+    loop = 1
+
+    # Initial FEM solve
+    fem = fem_solver_3d_combine(par, E)
+    compliance = fem.compliance
+    H = fem.H
+    W_tot = sum(fem.U)
+
+    strain_energy_vector = [W_tot, W_tot * 10]
+    A = (strain_energy_vector[2] - strain_energy_vector[1]) / strain_energy_vector[1]
+    # println("Iter $loop: C = $compliance, ΔR = $A")
+
+    # Iterative optimization loop
+    while abs(A) > tol && loop <= max_itr
+        # FEM solve with current parameters
+        fem = fem_solver_3d_combine(par, E)
+        compliance = fem.compliance
+        H = fem.H
+        W_tot = sum(fem.U)
+
+        # Material update routines
+        if volfrac == 0.0
+            #Enew = update_young_UPM(k, E, H, Emax, Emin, E0, γ)
+            Enew = update_upm(k, E, H, Emax, Emin)
+            Enew_frac = Enew
+        elseif volfrac > 0.0
+            # Enew = update_young_UPM(k, E, H, Emax, Emin, E0, γ)
+            Enew = update_upm(k, E, H, Emax, Emin)
+            ρ = transfer_to_density(Enew, E0, ρ0, γ)
+            ρnew = filter_density_to_vf!(ρ, volfrac, tnele, η)
+            Enew_frac = transfer_to_young(ρnew, E0, ρ0, γ, Emin, Emax)
+        else
+            error("Invalid value for volfrac")
+        end
+
+
+        # Update par to reflect the new E distribution
+        # par.E = Enew_frac
+        E = Enew_frac
+
+        # FEM solve after material update
+        fem = fem_solver_3d_combine(par, E)
+        compliance = fem.compliance
+        H = fem.H
+        W_tot = sum(fem.U)
+        
+        
+
+        # Update strain energy vector and A
+        strain_energy_vector[1] = strain_energy_vector[2]
+        strain_energy_vector[2] = W_tot
+        A = (strain_energy_vector[2] - strain_energy_vector[1]) / strain_energy_vector[1]
+
+        loop += 1
+        # println("Iter $loop: C = $compliance, ΔR = $A")
+    end
+
+    # Handle termination
+    if loop > max_itr
+        compliance = -1
+    end
+
+    # Final solve and write results
+    fem = fem_solver_3d_combine(par, E)
+    compliance = fem.compliance
+    u = fem.u
+    U = fem.U
+    σ = fem.σ
+    ε = fem.ε
+    E_node = fem.E_node
+    full_path = joinpath(directory, name_of_file)
+
+    VTKGridFile(full_path, dh) do vtk
+        write_solution(vtk, dh, u)
+        # Write 3D stress components
+        for (j, key) in enumerate(("11", "22", "33", "12", "23", "13"))
+            write_cell_data(vtk, σ[j], "stress_" * key)
+        end
+        # Write 3D strain components
+        for (j, key) in enumerate(("11", "22", "33", "12", "23", "13"))
+            write_cell_data(vtk, ε[j], "strain_" * key)
+        end
+        write_cell_data(vtk, E, "Young's modulus")
+        write_cell_data(vtk, U, "Strain Energy")
+        write_node_data(vtk, E_node, "Nodal Young's modulus")
+        Ferrite.write_cellset(vtk, grid)
+    end
+
+    return compliance
+end
+
+##########################################################################################
+function optim_2D_combine(
+    par::DynamicParams, 
+    E, 
+    gamma_values, 
+    volfrac_values, 
+    eta_values, 
+    k_values, 
+    name_of_file::String, 
+    directory::String
+)
+    # Ensure output directory exists
+    if !isdir(directory)
+        println("Directory does not exist. Creating: $directory")
+        mkpath(directory)
+    end
+
+    # Initialize log file
+    log_path = joinpath(directory, string(name_of_file, ".txt"))
+    open(log_path, "w") do file
+        write(file, "File γ vf η k Compliance\n")  # Space-separated header
+    end
+
+    index = 1  # Initialize index for file naming and logging
+
+    for vf in volfrac_values
+        for γ in gamma_values
+            for k in k_values
+                η_values = vf == 0.0 ? [0.0] : eta_values  # Single η value when vf == 0.0
+                nvf_str = vf == 0.0 ? "nvf" : string(vf)   # Use "nvf" for zero volume fraction
+                
+                for η in η_values
+                    file_name = string("out_", lpad(index, 4, '0'))  # Ensure unique filename
+                    file_name_with_params = joinpath(directory, string(file_name, ".vtu"))
+
+                    # Compute compliance
+                    compliance = top_upm_combine(par, E, k, γ, η, vf, file_name_with_params, directory)
+
+                    # Append results to log file
+                    open(log_path, "a") do file
+                        write(file, "$file_name $γ $nvf_str $η $k $compliance\n")
+                    end
+
+                    println("Saved file: $file_name_with_params with compliance: $compliance")
+                    index += 1
+                end
+            end
+        end
+    end
+
+    println("Optimization completed. Results saved to $log_path")
+end
+
+##########################################################################################
+function optim_3D_combine(
+    par::DynamicParams, 
+    E, 
+    gamma_values, 
+    volfrac_values, 
+    eta_values, 
+    k_values, 
+    name_of_file::String, 
+    directory::String
+)
+    # Ensure output directory exists
+    if !isdir(directory)
+        println("Directory does not exist. Creating: $directory")
+        mkpath(directory)
+    end
+
+    # Initialize log file
+    log_path = joinpath(directory, string(name_of_file, ".txt"))
+    open(log_path, "w") do file
+        write(file, "File γ vf η k Compliance\n")  # Space-separated header
+    end
+
+    index = 1  # Initialize index for file naming and logging
+
+    for vf in volfrac_values
+        for γ in gamma_values
+            for k in k_values
+                η_values = vf == 0.0 ? [0.0] : eta_values  # Single η value when vf == 0.0
+                nvf_str = vf == 0.0 ? "nvf" : string(vf)   # Use "nvf" for zero volume fraction
+                
+                for η in η_values
+                    file_name = string("out_", lpad(index, 4, '0'))  # Ensure unique filename
+                    file_name_with_params = joinpath(directory, string(file_name, ".vtu"))
+
+                    # Compute compliance
+                    compliance = top_upm_3d_combine(par, E, k, γ, η, vf, file_name_with_params, directory)
+
+                    # Append results to log file
+                    open(log_path, "a") do file
+                        write(file, "$file_name $γ $nvf_str $η $k $compliance\n")
+                    end
+
+                    println("Saved file: $file_name_with_params with compliance: $compliance")
+                    index += 1
+                end
+            end
+        end
+    end
+
+    println("Optimization completed. Results saved to $log_path")
+end
