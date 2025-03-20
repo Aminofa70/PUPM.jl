@@ -1,14 +1,7 @@
 using Revise
 using Ferrite
+using Statistics
 using PUPM
-# test fem_solver
-"""
-Finite Element programming for 2D plane stress 
-Plate under tension
-Reference:
-https://shop.elsevier.com/books/practical-programming-of-finite-element-procedures-for-solids-and-structures-with-matlab/farahmand-tabar/978-0-443-15338-9
-
-"""
 par = DynamicParams()  # Create a dynamic parameter object
 # Function to create the grid
 function create_grid(Lx, Ly, nx, ny)
@@ -52,7 +45,7 @@ end
 
 # Define parameters
 Lx, Ly = 1.0, 1.0  # Plate dimensions
-nx, ny = 4, 4      # Number of elements along x and y
+nx, ny = 10, 10      # Number of elements along x and y
 par.grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
 
 # Create DOF handler and constraints
@@ -63,26 +56,36 @@ par.ch = create_bc(par.dh)
 par.cell_values, par.facet_values = create_values()
 
 # # # Define loads
-# pressure_value = 1e10  # Example pressure in Pascals
-pressure_value = 2.0  # Example pressure in Pascals
+pressure_value = 1.0  # Example pressure in Pascals
 par.loads = [LoadCondition("pressure_load", pressure_value)]  # Load applied to "pressure" facet
 
-# Material properties
-# par.E = fill(210e9, nx * ny)  # Young's modulus (Pa)
-par.E = fill(1e10, nx * ny)  # Young's modulus (Pa)
 #par.E = 210e9
-par.ν = 0.3 # Poisson's ratio
-
+par.ν = 0.3
+par.νxy = 0.3 # Poisson's ratio
 # Neumann BC facet set
 dh = par.dh; grid = dh.grid
 par.Neumann_bc = Ferrite.getfacetset(dh.grid, "pressure")
-
 # Solve the FEM problem using OptiUPM
-result = fem_solver(par)
+E = fill(1.0, nx * ny)  # Young's modulus (Pa)
+result = fem_solver_combine(par, E)
 
-# u = result.u
+u = result.u
+H = result.H
+# # # compliance = result.compliance
+# display(sum(H))
+# # display(maximum(u))
+# # display(minimum(u))
 
-# display(maximum(u))
-# display(minimum(u))
-σ = result.σ
-maximum(maximum(σ))
+# Ex =fill(1.0, nx * ny)  # Young's modulus (Pa)
+# Ey =fill(1.0, nx * ny)  # Young's modulus (Pa)
+# solution = fem_solver_combine_orthotropic(par, Ex, Ey)
+
+# u_orth = solution.u
+# Hx = solution.Hx
+# Hy = solution.Hy
+# # display(maximum(u_orth))
+# # display(minimum(u_orth))
+# display(sum(Hx))
+# display(sum(Hy))
+
+compliance = result.c

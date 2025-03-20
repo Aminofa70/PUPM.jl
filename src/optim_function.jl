@@ -91,50 +91,105 @@ vf = 0.5
 ```
 """
 function filter_density_to_vf!(density, vf, tnele, eta)
-    rhomin, rhomax = 0.01, 1.
+    rhomin, rhomax = 0.01, 1.0  # Density bounds
+    
     function transform(rholoc, rhotr, eta, rhomin, rhomax)
         if rholoc < rhotr
             rhotrans = rhomin  
-        elseif rholoc > rhotr + 1.0/tan(eta)
+        elseif rholoc > rhotr + 1.0 / tan(eta)
             rhotrans = rhomax
         else
             rhotrans = tan(eta) * (rholoc - rhotr)
         end
         return rhotrans
     end
-    rhomaxbound = -1.0/tan(eta)  # minimum that gives a vf of 0
-    rhominbound = 1.0  # maximum that gives a vf of 1
-    error = 10.0  # just put a high number
-    rhotr = 0.0  # Initialize rhotr before the loop
+
+    rho_vf0_bound = -1.0 / tan(eta)  # Threshold giving vf = 0
+    rho_vf1_bound = 1.0              # Threshold giving vf = 1
+    error = 10.0                      # Initialize error to a large value
+    rhotr = 0.0                       # Initialize rhotr before the loop
+
     while error > 0.001
-        rhotr = (rhominbound + rhomaxbound) / 2  # this is the initial point
+        rhotr = (rho_vf1_bound + rho_vf0_bound) / 2  # Midpoint search
         sumdmin = 0.0
         for i in eachindex(density)
-            sumdmin += transform(density[i], rhominbound, eta, rhomin, rhomax) / (tnele)
+            sumdmin += transform(density[i], rho_vf1_bound, eta, rhomin, rhomax) / tnele
         end
+
         sumdmax = 0.0
         for i in eachindex(density)
-            sumdmax += transform(density[i], rhomaxbound, eta, rhomin, rhomax) / (tnele)
+            sumdmax += transform(density[i], rho_vf0_bound, eta, rhomin, rhomax) / tnele
         end
+
         sumdmid = 0.0
         for i in eachindex(density)
-            sumdmid += transform(density[i], rhotr, eta, rhomin, rhomax) / (tnele)
+            sumdmid += transform(density[i], rhotr, eta, rhomin, rhomax) / tnele
         end
+
         if (sumdmin - vf) / (sumdmid - vf) > 0
-            rhominbound = rhotr
+            rho_vf1_bound = rhotr
         elseif (sumdmax - vf) / (sumdmid - vf) > 0
-            rhomaxbound = rhotr
+            rho_vf0_bound = rhotr
         else
-            println("problem out of bounds", sumdmax, sumdmin, sumdmid, vf)
+            println("Error: Values out of expected bounds", sumdmax, sumdmin, sumdmid, vf)
         end
+
         error = abs(vf - sumdmid)
     end
+
     for i in eachindex(density)
         densloc = transform(density[i], rhotr, eta, rhomin, rhomax)
         density[i] = densloc
     end
+
     return density
 end
+
+# function filter_density_to_vf!(density, vf, tnele, eta)
+#     rhomin, rhomax = 0.01, 1.
+#     function transform(rholoc, rhotr, eta, rhomin, rhomax)
+#         if rholoc < rhotr
+#             rhotrans = rhomin  
+#         elseif rholoc > rhotr + 1.0/tan(eta)
+#             rhotrans = rhomax
+#         else
+#             rhotrans = tan(eta) * (rholoc - rhotr)
+#         end
+#         return rhotrans
+#     end
+#     rhomaxbound = -1.0/tan(eta)  # minimum that gives a vf of 0
+#     rhominbound = 1.0  # maximum that gives a vf of 1
+#     error = 10.0  # just put a high number
+#     rhotr = 0.0  # Initialize rhotr before the loop
+#     while error > 0.001
+#         rhotr = (rhominbound + rhomaxbound) / 2  # this is the initial point
+#         sumdmin = 0.0
+#         for i in eachindex(density)
+#             sumdmin += transform(density[i], rhominbound, eta, rhomin, rhomax) / (tnele)
+#         end
+#         sumdmax = 0.0
+#         for i in eachindex(density)
+#             sumdmax += transform(density[i], rhomaxbound, eta, rhomin, rhomax) / (tnele)
+#         end
+#         sumdmid = 0.0
+#         for i in eachindex(density)
+#             sumdmid += transform(density[i], rhotr, eta, rhomin, rhomax) / (tnele)
+#         end
+#         if (sumdmin - vf) / (sumdmid - vf) > 0
+#             rhominbound = rhotr
+#         elseif (sumdmax - vf) / (sumdmid - vf) > 0
+#             rhomaxbound = rhotr
+#         else
+#             println("problem out of bounds", sumdmax, sumdmin, sumdmid, vf)
+#         end
+#         error = abs(vf - sumdmid)
+#     end
+#     for i in eachindex(density)
+#         densloc = transform(density[i], rhotr, eta, rhomin, rhomax)
+#         density[i] = densloc
+#     end
+#     return density
+# end
 
 
 """

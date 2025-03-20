@@ -384,6 +384,8 @@ function calculate_average_strain_energy(grid, dh, cv, u, E, ν)
         element_strain_energies[cellid(cell)] = cell_energy / cell_volume
         element_volumes[cellid(cell)] = cell_volume
     end
+    
+
     return element_strain_energies
 end
 # function compute_nodal_data(grid, element_data)

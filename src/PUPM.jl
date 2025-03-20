@@ -3,7 +3,8 @@ using Ferrite
 using Printf
 using Tensors
 using Statistics
-
+using LinearAlgebra
+using ForwardDiff
 
 export DynamicParams
 include("DynamicParams.jl")
@@ -67,5 +68,24 @@ include("optim_function.jl")
 export remove_vtk_files
 
 include("utils.jl")
+################################
+export C_orthotropic
+export compute_derivatives
+export assemble_cell_orthotropic!
+export assemble_global_orthotropic!
+export calculate_strain_energy_orthotropic
+export dC_orthotropic_dEx
+export dC_orthotropic_dEy
+export calculate_Hx
+export calculate_Hy
+export FEMSolver_orthotropic
+export fem_solver_combine_orthotropic
+export compute_gamma
+export transfer_to_young_y_dir
+export top_upm_orthotropic
+export optim_2D_combine_orthotropic
+include("functions_orthopedic jl")
+################################
+
 
 end
