@@ -14,7 +14,7 @@ Tensors = "48a634ad-e948-5137-8d70-aa71f2a747f4"
 
 [compat]
 Ferrite = "1.0.0"
-ForwardDiff = "0.10.38"
+ForwardDiff = "0.10.38, 1"
 LinearAlgebra = "1.11.0"
 Printf = "1.11.0"
 Revise = "3.6.4"
