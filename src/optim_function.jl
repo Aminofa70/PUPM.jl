@@ -55,6 +55,7 @@ function transfer_to_density(Enew::Array{Float64,1}, E0::Float64, ρ0::Float64, 
     return ρ
 end
 
+
 """
 function to transfer density to young modulus
 example:
@@ -76,6 +77,9 @@ function transfer_to_young(ρnew::Array{Float64,1}, E0::Float64,
 
     return Enew
 end
+
+
+
 
 """
 function to apply volume fraction
