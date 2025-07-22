@@ -2,11 +2,12 @@ module PUPM
 using Ferrite
 using Printf
 using Tensors
-using Statistics
 using LinearAlgebra
 using ForwardDiff
 
 export DynamicParams
+export my_mean
+export my_std
 include("DynamicParams.jl")
 
 export get_material_matrix

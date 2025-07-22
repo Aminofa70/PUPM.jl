@@ -23,3 +23,20 @@ function Base.setproperty!(obj::DynamicParams, name::Symbol, value)
         obj.parameters[name] = value
     end
 end
+
+function my_mean(data::Vector{<:Number})
+    total = 0.0
+    for x in data
+        total += x
+    end
+    return total / length(data)
+end
+
+function my_std(data::Vector{<:Number})
+    μ = my_mean(data)
+    sumsq = 0.0
+    for x in data
+        sumsq += (x - μ)^2
+    end
+    return sqrt(sumsq / (length(data) - 1))  # sample standard deviation
+end
