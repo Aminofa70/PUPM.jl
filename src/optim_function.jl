@@ -274,7 +274,7 @@ function top_upm(par::DynamicParams, name_of_file::String, directory::String)
 
     end
 
-    FIGlet.render("THIS IS PUMP", "Standard")
+    FIGlet.render("THIS IS PUPM", "Standard")
     
     FIGlet.render("OPTIMIZATION SUCCESSFUL", "Standard")
     ## Handle termination
