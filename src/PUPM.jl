@@ -4,7 +4,7 @@ using Printf
 using Tensors
 using LinearAlgebra
 using ForwardDiff
-
+using FIGlet
 export DynamicParams
 export my_mean
 export my_std
@@ -85,7 +85,7 @@ export compute_gamma
 export transfer_to_young_y_dir
 export top_upm_orthotropic
 export optim_2D_combine_orthotropic
-include("functions_orthopedic jl")
+include("functions_orthopedic.jl")
 ################################
 
 

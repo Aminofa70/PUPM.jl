@@ -67,14 +67,15 @@ par.Emax = 1.0              # Maximum Young's modulus
 par.ρ0 = 1.0                # Initial density
 par.tol = 1e-3            # Convergence tolerance
 par.γ = 1           # Penalty factor
-par.η = π /(12)              # Filter parameter
+par.η = π /(4)              # Filter parameter
 par.k = 8                  # Sensitivity parameter
 par.vf = 0.5                # Volume fraction
 # Neumann BC facet set
 par.Neumann_bc = getfacetset(grid, "traction")
 
 file_name = "linear_elasticty"
-dir = "/Users/aminalibakhshi/Desktop/vtu_compare/"
+# dir = "/Users/aminalibakhshi/Desktop/vtu_compare/"
+dir = "/Users/aminalibakhshi/Desktop/vtu_geo/"
 remove_vtk_files(dir)
 # Run the topology optimization
 par.max_itr = 200
