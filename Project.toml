@@ -13,14 +13,12 @@ Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Tensors = "48a634ad-e948-5137-8d70-aa71f2a747f4"
 
 [compat]
+julia = "1.11"
 FIGlet = "0.2.2"
 Ferrite = "1.0.0"
 ForwardDiff = "0.10.38"
-LinearAlgebra = "1.11.0"
-Printf = "1.11.0"
 Revise = "3.6.4"
 Tensors = "1.16.1"
-julia = "1.6.7"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
