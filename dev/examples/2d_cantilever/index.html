@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>2D Cantilever · PUPM.jl</title><meta name="title" content="2D Cantilever · PUPM.jl"/><meta property="og:title" content="2D Cantilever · PUPM.jl"/><meta property="twitter:title" content="2D Cantilever · PUPM.jl"/><meta name="description" content="Documentation for PUPM.jl."/><meta property="og:description" content="Documentation for PUPM.jl."/><meta property="twitter:description" content="Documentation for PUPM.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">PUPM.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../install/">Install</a></li><li><a class="tocitem" href="../../functions/">Functions</a></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href>2D Cantilever</a><ul class="internal"><li><a class="tocitem" href="#Plain-program"><span>Plain program</span></a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>2D Cantilever</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>2D Cantilever</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Aminofa70/PUPM.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Aminofa70/PUPM.jl/blob/main/docs/src/examples/2d_cantilever.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Example-for-2D-Cantilever"><a class="docs-heading-anchor" href="#Example-for-2D-Cantilever">Example for 2D Cantilever</a><a id="Example-for-2D-Cantilever-1"></a><a class="docs-heading-anchor-permalink" href="#Example-for-2D-Cantilever" title="Permalink"></a></h1><p>Load the package</p><pre><code class="nohighlight hljs">using Revise
+using Ferrite
+using PUPM</code></pre><p>Generate a dynamic struc for fem inputs</p><pre><code class="nohighlight hljs">par = DynamicParams() </code></pre><p>Function to generate grid (mesh and geometry)</p><pre><code class="nohighlight hljs"># faces and nodes at the boundary are defiend
+function create_grid(Lx, Ly, nx, ny)
+    corners = [
+        Ferrite.Vec{2}((0.0, 0.0)), Ferrite.Vec{2}((Lx, 0.0)),
+        Ferrite.Vec{2}((Lx, Ly)), Ferrite.Vec{2}((0.0, Ly))
+    ]
+    grid = Ferrite.generate_grid(Ferrite.Quadrilateral, (nx, ny), corners)
+    addnodeset!(grid, &quot;clamped&quot;, x -&gt; x[1] ≈ 0.0)
+    addfacetset!(grid, &quot;traction&quot;, x -&gt; x[1] ≈ Lx &amp;&amp; norm(x[2] - 0.5) &lt;= 0.05)
+    return grid
+end
+</code></pre><p>Function to create CellValues and FacetValues</p><pre><code class="nohighlight hljs">function create_values()
+    dim, order = 2, 1
+    ip = Ferrite.Lagrange{Ferrite.RefQuadrilateral, order}()^dim
+    qr = Ferrite.QuadratureRule{Ferrite.RefQuadrilateral}(2)
+    qr_face = Ferrite.FacetQuadratureRule{Ferrite.RefQuadrilateral}(1)
+    cell_values = Ferrite.CellValues(qr, ip)
+    facet_values = Ferrite.FacetValues(qr_face, ip)
+    return cell_values, facet_values
+end
+</code></pre><p>Function to create DofHandler (degrees of freedom )</p><pre><code class="nohighlight hljs">function create_dofhandler(grid)
+    dh = Ferrite.DofHandler(grid)
+    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefQuadrilateral, 1}()^2)
+    Ferrite.close!(dh)
+    return dh
+end
+</code></pre><p>Function to create Dirichlet boundary conditions</p><pre><code class="nohighlight hljs">function create_bc(dh)
+    ch = Ferrite.ConstraintHandler(dh)
+    add!(ch, Dirichlet(:u, getnodeset(dh.grid, &quot;clamped&quot;), (x, t) -&gt; [0.0, 0.0], [1, 2]))
+    Ferrite.close!(ch)
+    return ch
+end
+</code></pre><p>Define parameters for fem input</p><pre><code class="nohighlight hljs">Lx, Ly = 2.0, 1.0  # Plate dimensions
+nx, ny = 120, 60   # Number of elements along x and y
+grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
+
+par.tnele = length(grid.cells)  # Total number of elements
+par.grid = grid
+# Create DOF handler and constraints
+par.dh = create_dofhandler(grid)
+par.ch = create_bc(par.dh )
+
+# Create CellValues and FacetValues
+par.cell_values, par.facet_values = create_values()
+
+# Define loads
+pressure_value = 1.  # Example pressure in Pascals
+par.loads = [LoadCondition(&quot;traction_load&quot;, [0.0, -pressure_value])]  # Load applied to the &quot;traction&quot; facet
+# Neumann BC facet set
+par.Neumann_bc = getfacetset(grid, &quot;traction&quot;)</code></pre><p>Define top input parameters</p><pre><code class="nohighlight hljs"># Material properties
+par.E0 = 1.0                
+par.E = fill(par.E0, Ferrite.getncells(grid))  # Initialize Young&#39;s modulus for all cells
+par.ν = 0.3 # Poisson&#39;s ratio 
+# Optimization parameters
+par.Emin = 1e-4             # Minimum Young&#39;s moduluspar.
+par.Emax = 1.0              # Maximum Young&#39;s modulus
+par.ρ0 = 1.0                # Initial density
+par.tol = 1e-3            # Convergence tolerance
+par.γ = 1           # Penalty factor
+par.η = π /(4)              # Filter parameter
+par.k = 8                  # Sensitivity parameter
+par.vf = 0.5                # Volume fraction
+par.max_itr = 200</code></pre><p>Define file name to save data in vtu and defin dir</p><pre><code class="nohighlight hljs">file_name = &quot;linear_elasticty&quot;
+dir = &quot;/Users/aminalibakhshi/Desktop/vtu_geo/&quot; #(change to your dir)</code></pre><p>Function to remove already present vtu files in dir (optional)</p><pre><code class="nohighlight hljs">remove_vtk_files(dir)
+</code></pre><p>Function to run topology optimization</p><pre><code class="nohighlight hljs">top_upm(par, file_name, dir)</code></pre><h2 id="Plain-program"><a class="docs-heading-anchor" href="#Plain-program">Plain program</a><a id="Plain-program-1"></a><a class="docs-heading-anchor-permalink" href="#Plain-program" title="Permalink"></a></h2><pre><code class="nohighlight hljs">using Revise
+using Ferrite
+using PUPM
+
+par = DynamicParams() 
+
+# faces and nodes at the boundary are defiend
+function create_grid(Lx, Ly, nx, ny)
+    corners = [
+        Ferrite.Vec{2}((0.0, 0.0)), Ferrite.Vec{2}((Lx, 0.0)),
+        Ferrite.Vec{2}((Lx, Ly)), Ferrite.Vec{2}((0.0, Ly))
+    ]
+    grid = Ferrite.generate_grid(Ferrite.Quadrilateral, (nx, ny), corners)
+    addnodeset!(grid, &quot;clamped&quot;, x -&gt; x[1] ≈ 0.0)
+    addfacetset!(grid, &quot;traction&quot;, x -&gt; x[1] ≈ Lx &amp;&amp; norm(x[2] - 0.5) &lt;= 0.05)
+    return grid
+end
+
+function create_values()
+    dim, order = 2, 1
+    ip = Ferrite.Lagrange{Ferrite.RefQuadrilateral, order}()^dim
+    qr = Ferrite.QuadratureRule{Ferrite.RefQuadrilateral}(2)
+    qr_face = Ferrite.FacetQuadratureRule{Ferrite.RefQuadrilateral}(1)
+    cell_values = Ferrite.CellValues(qr, ip)
+    facet_values = Ferrite.FacetValues(qr_face, ip)
+    return cell_values, facet_values
+end
+
+function create_dofhandler(grid)
+    dh = Ferrite.DofHandler(grid)
+    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefQuadrilateral, 1}()^2)
+    Ferrite.close!(dh)
+    return dh
+end
+
+function create_bc(dh)
+    ch = Ferrite.ConstraintHandler(dh)
+    add!(ch, Dirichlet(:u, getnodeset(dh.grid, &quot;clamped&quot;), (x, t) -&gt; [0.0, 0.0], [1, 2]))
+    Ferrite.close!(ch)
+    return ch
+end
+
+Lx, Ly = 2.0, 1.0  # Plate dimensions
+nx, ny = 120, 60   # Number of elements along x and y
+grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
+
+par.tnele = length(grid.cells)  # Total number of elements
+par.grid = grid
+# Create DOF handler and constraints
+par.dh = create_dofhandler(grid)
+par.ch = create_bc(par.dh )
+
+# Create CellValues and FacetValues
+par.cell_values, par.facet_values = create_values()
+
+# Define loads
+pressure_value = 1.  # Example pressure in Pascals
+par.loads = [LoadCondition(&quot;traction_load&quot;, [0.0, -pressure_value])]  # Load applied to the &quot;traction&quot; facet
+# Neumann BC facet set
+par.Neumann_bc = getfacetset(grid, &quot;traction&quot;)
+
+# Material properties
+par.E0 = 1.0                
+par.E = fill(par.E0, Ferrite.getncells(grid))  # Initialize Young&#39;s modulus for all cells
+par.ν = 0.3 # Poisson&#39;s ratio 
+# Optimization parameters
+par.Emin = 1e-4             # Minimum Young&#39;s moduluspar.
+par.Emax = 1.0              # Maximum Young&#39;s modulus
+par.ρ0 = 1.0                # Initial density
+par.tol = 1e-3            # Convergence tolerance
+par.γ = 1           # Penalty factor
+par.η = π /(4)              # Filter parameter
+par.k = 8                  # Sensitivity parameter
+par.vf = 0.5                # Volume fraction
+par.max_itr = 200
+
+file_name = &quot;linear_elasticty&quot;
+dir = &quot;/Users/aminalibakhshi/Desktop/vtu_geo/&quot; # (change to your dir)
+
+remove_vtk_files(dir)
+
+top_upm(par, file_name, dir)
+</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../functions/">« Functions</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Sunday 27 July 2025 22:52">Sunday 27 July 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
