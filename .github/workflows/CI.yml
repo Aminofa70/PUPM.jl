@@ -26,8 +26,14 @@ jobs:
           - '1.11'
           - '1.6'
           - 'pre'
-        os:
-          - ubuntu-latest
+        os: ['ubuntu-latest']
+        include:
+          - os: windows-latest
+            version: '1'
+            arch: x64
+          - os: macOS-latest
+            version: '1'
+            arch: x64
         arch:
           - x64
     steps:
