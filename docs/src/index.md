@@ -7,13 +7,13 @@ CurrentModule = PUPM
 Welcome to
 Documentation for [PUPM](https://github.com/Aminofa70/PUPM.jl).
 
-yes!
+
 Functions for the package are listed as follows.
 
-In this package, we can use the Penealized Updated Properties Model approach for topology optimization of 2D and 3D structures.
-```@index
+<!-- In this package, we can use the Penealized Updated Properties Model approach for topology optimization of 2D and 3D structures.
+```@index -->
 ```
 
-```@autodocs
+<!-- ```@autodocs
 Modules = [PUPM]
-```
+``` -->
