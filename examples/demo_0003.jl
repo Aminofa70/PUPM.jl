@@ -75,7 +75,7 @@ par.Neumann_bc = getfacetset(grid, "traction")
 
 file_name = "linear_elasticty"
 # dir = "/Users/aminalibakhshi/Desktop/vtu_compare/"
-dir = "/Users/aminalibakhshi/Desktop/vtu_geo/"
+dir = "/Users/aminalibakhshi/Desktop/vtu_results/"
 remove_vtk_files(dir)
 # Run the topology optimization
 par.max_itr = 200

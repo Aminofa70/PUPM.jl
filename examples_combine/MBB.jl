@@ -85,7 +85,7 @@ k = [4 , 8 , 12]                     # Sensitivity parameter
 par.Neumann_bc = Ferrite.getnodeset(grid, "nodal_force")  # Nodes on the edge
 
 file_name = "optim"
-dir = "/Users/aminalibakhshi/Desktop/pump_vtu/MBB"
+dir = "/Users/aminalibakhshi/Desktop/vtu_results/"
 remove_vtk_files(dir)
 par.max_itr = 200
 

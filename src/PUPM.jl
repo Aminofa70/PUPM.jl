@@ -3,7 +3,7 @@ using Ferrite
 using Printf
 using Tensors
 using LinearAlgebra
-using ForwardDiff
+#using ForwardDiff
 using FIGlet
 export DynamicParams
 export my_mean
