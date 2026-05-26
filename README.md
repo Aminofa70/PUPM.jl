@@ -1,5 +1,7 @@
 # PUPM
 
+** The package is going to be under heavy change **
+
 A Package for topology optimization based on Penalized Updated Properties model (PUPM)
 
 Two and Three dimensional problems are covered.
