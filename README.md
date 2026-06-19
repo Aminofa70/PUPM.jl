@@ -1,6 +1,6 @@
 # PUPM
 
-** The package is going to be under heavy change **
+A pure Julia plot using GLMakie to be added. 
 
 A Package for topology optimization based on Penalized Updated Properties model (PUPM)
 
